@@ -1,0 +1,11 @@
+model Cart {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user")
+  user        User     @relation(fields: [userId], references: [id])
+  category    String
+  title       String
+  amount      Float
+  count       Int      @default(1)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+}

@@ -1,47 +1,80 @@
-import Category from "../models/Category.js";
-import Video from "../models/Video.js";
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export const getAllCategory = async (_req, res) => {
-  const category = await Category.find().select("-password").lean();
-  if (!category?.length)
-    return res.status(400).json({ message: "No category found" });
-  res.json(category);
+  try {
+    const categories = await prisma.category.findMany();
+
+    if (!categories?.length) {
+      return res.status(200).json([]);
+    }
+
+    res.json(categories);
+  } catch (error) {
+    console.error('Get all categories error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  } finally {
+    await prisma.$disconnect();
+  }
 };
 
 export const getCategory = async (req, res) => {
   const { categoryId } = req.params;
-  console.log("first");
-  const category = await Category.findById(categoryId)
-    .select("-password")
-    .lean();
-  console.log(category);
-  if (!category) return res.status(400).json({ message: "No category found" });
-  res.json(category);
+  console.log('first');
+
+  try {
+    const category = await prisma.category.findUnique({
+      where: { id: parseInt(categoryId) },
+    });
+
+    console.log(category);
+    if (!category) {
+      return res.status(400).json({ message: 'No category found' });
+    }
+
+    res.json(category);
+  } catch (error) {
+    console.error('Get category error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  } finally {
+    await prisma.$disconnect();
+  }
 };
 
 export const createNewCategory = async (req, res) => {
   const { name } = req.body;
   console.log(name);
-  if (!name) return res.status(400).json({ message: "Name field is required" });
 
-  const duplicateName = await Category.findOne({ name })
-    .collation({ locale: "en", strength: 2 })
-    .lean()
-    .exec();
-  if (duplicateName)
-    return res.status(400).json({ message: "Duplicate category name" });
+  if (!name) {
+    return res.status(400).json({ message: 'Name field is required' });
+  }
 
   try {
-    const category = await Category.create({ name });
+    const duplicateName = await prisma.category.findFirst({
+      where: {
+        name: { equals: name, mode: 'insensitive' },
+      },
+    });
 
-    if (category)
+    if (duplicateName) {
+      return res.status(400).json({ message: 'Duplicate category name' });
+    }
+
+    const category = await prisma.category.create({
+      data: { name },
+    });
+
+    if (category) {
       return res.status(200).json({ message: `New category ${name} created` });
-    else
-      return res
-        .status(400)
-        .json({ message: "Invalid category data received" });
+    } else {
+      return res.status(400).json({ message: 'Invalid category data received' });
+    }
   } catch (error) {
-    return res.status(500).json({ message: "Internal server error" });
+    console.error('Create category error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  } finally {
+    await prisma.$disconnect();
   }
 };
 
@@ -49,44 +82,85 @@ export const updateCategory = async (req, res) => {
   const { categoryId, name } = req.body;
   console.log(req.body);
 
-  if (!categoryId)
-    return res.status(400).json({ message: "ID field is required" });
-
-  const category = await Category.findById(categoryId).exec();
-  if (!category) return res.status(400).json({ message: "Category not found" });
-
-  const oldName = category.name;
-
-  if (name) {
-    const duplicateName = await Category.findOne({ name })
-      .collation({ locale: "en", strength: 2 })
-      .lean()
-      .exec();
-    if (duplicateName)
-      return res.status(400).json({ message: "Duplicate name" });
-    else category.name = name;
+  if (!categoryId) {
+    return res.status(400).json({ message: 'ID field is required' });
   }
 
-  const updateCategory = await category.save();
+  try {
+    const category = await prisma.category.findUnique({
+      where: { id: parseInt(categoryId) },
+    });
 
-  // If title was changed, update related videos
-  if (oldName !== category.name)
-    await Video.updateMany({ category: oldName }, { category: category.name });
+    if (!category) {
+      return res.status(400).json({ message: 'Category not found' });
+    }
 
-  res.json({ message: `${updateCategory.name} successfully updated` });
+    const oldName = category.name;
+
+    let updates = {};
+    if (name) {
+      const duplicateName = await prisma.category.findFirst({
+        where: {
+          name: { equals: name, mode: 'insensitive' },
+          id: { not: parseInt(categoryId) },
+        },
+      });
+
+      if (duplicateName) {
+        return res.status(400).json({ message: 'Duplicate name' });
+      }
+      updates.name = name;
+    }
+
+    if (Object.keys(updates).length) {
+      await prisma.category.update({
+        where: { id: parseInt(categoryId) },
+        data: updates,
+      });
+    }
+
+    if (name && oldName !== name) {
+      await prisma.video.updateMany({
+        where: { category: oldName },
+        data: { category: name },
+      });
+    }
+
+    res.json({ message: `${name || category.name} successfully updated` });
+  } catch (error) {
+    console.error('Update category error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  } finally {
+    await prisma.$disconnect();
+  }
 };
 
 export const deleteCategory = async (req, res) => {
   const { categoryId } = req.body;
-  console.log("req.body");
-  console.log(req.body);
-  if (!categoryId)
-    return res.status(400).json({ message: "Category ID required" });
+  console.log('req.body', req.body);
 
-  const category = await Category.findById(categoryId).exec();
-  if (!category)
-    return res.status(400).json({ message: "Category not found!" });
+  if (!categoryId) {
+    return res.status(400).json({ message: 'Category ID required' });
+  }
 
-  await category.deleteOne();
-  res.json("Category successfully deleted");
+  try {
+    const category = await prisma.category.findUnique({
+      where: { id: parseInt(categoryId) },
+    });
+
+    if (!category) {
+      return res.status(400).json({ message: 'Category not found!' });
+    }
+
+    await prisma.category.delete({
+      where: { id: parseInt(categoryId) },
+    });
+
+    res.json('Category successfully deleted');
+  } catch (error) {
+    console.error('Delete category error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  } finally {
+    await prisma.$disconnect();
+  }
 };

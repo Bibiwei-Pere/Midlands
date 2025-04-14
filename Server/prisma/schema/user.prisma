@@ -1,0 +1,66 @@
+model User {
+  id                          Int       @id @default(autoincrement())
+  username                    String
+  firstname                   String?
+  lastname                    String?
+  phone                       String?
+  password                    String?
+  email                       String    @unique
+  about                       String?
+  skills                      String[]  @default([])
+  role                        String    @default("User")
+  refreshToken                String?
+  avatarName                  String    @default("")
+  avatarFileId                String    @default("")
+  avatarUrl                   String    @default("")
+  bankAccountName             String?
+  bankAccountNumber           String?
+  bankName                    String?
+  bankRecipientCode           String?
+  affiliateCommissionRate     Float     @default(0)
+  affiliateBalance            Float     @default(0)
+  affiliateCount              Int       @default(0)
+  affiliateConversion         Int       @default(0)
+  affiliateLifetimeEarnings   Float     @default(0)
+  affiliateWithdrawalCount    Int       @default(0)
+  affiliateDueDate            DateTime  @default("2025-05-31T23:59:59.999Z")
+  affiliateRefereeUserId      Int?
+  affiliateRefereeDate        DateTime?
+  lastLogin                   DateTime  @default(now())
+  isActive                    Boolean   @default(false)
+  isDeleted                   Boolean   @default(false)
+  reviews                     Int       @default(0)
+  students                    Int       @default(0)
+  courses                     Int       @default(0)
+  notificationsRemindersPush  Boolean   @default(false)
+  notificationsRemindersEmail Boolean   @default(true)
+  notificationsRemindersSms   Boolean   @default(true)
+  notificationsUpdatesPush    Boolean   @default(false)
+  notificationsUpdatesEmail   Boolean   @default(true)
+  notificationsUpdatesSms     Boolean   @default(true)
+  notificationsOthersPush     Boolean   @default(false)
+  notificationsOthersEmail    Boolean   @default(true)
+  notificationsOthersSms      Boolean   @default(true)
+  isVerified                  Boolean   @default(false)
+  verificationCode            Int?
+  otpExpiry                   DateTime?
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
+
+  // Relations
+  course          Course[]
+  carts           Cart[]
+  bookSessions    BookSession[]
+  certificates    Certificate[]
+  notifications   Notification[]
+  payouts         Payout[]
+  review          Review[]
+  signals         Signal[]
+  tickets         Tickets[]
+  transactions    Transaction[]
+  videos          Video[]
+  userBookSession UserBookSession[]
+  userCourses     UserCourse[]
+
+  UserChapter UserChapter[]
+}

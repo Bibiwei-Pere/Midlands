@@ -1,0 +1,369 @@
+model UserBookSession {
+  id        Int      @id @default(autoincrement())
+  bookId    String
+  program   String
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BookSession {
+  id                Int       @id @default(autoincrement())
+  userId            Int       @map("user")
+  user              User      @relation(fields: [userId], references: [id])
+  program           String
+  bookSessionName   String    @default("") @map("book_session_name")
+  bookSessionNumber String    @default("") @map("book_session_number")
+  bookSessionEmail  String    @default("") @map("book_session_email")
+  bookSessionDate   DateTime? @map("book_session_date")
+  status            String    @default("Pending")
+  paymentMethod     String    @default("Paystack") @map("payment_method")
+  transactionId     String?   @map("transaction_id")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+}
+
+model Cart {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user")
+  user      User     @relation(fields: [userId], references: [id])
+  category  String
+  title     String
+  amount    Float
+  count     Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+}
+
+model Category {
+  id        Int      @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+}
+
+model Certificate {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user")
+  user      User     @relation(fields: [userId], references: [id])
+  category  String
+  title     String
+  courseId  String   @map("course_id")
+  size      Int      @default(4)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+}
+
+model Chapter {
+  id              Int            @id @default(autoincrement())
+  courseId        Int            @map("course_id")
+  course          Course         @relation(fields: [courseId], references: [id])
+  title           String         @default("") @map("details_title")
+  subtitle        String         @default("") @map("details_subtitle")
+  completed       Boolean        @default(false)
+  description     String         @default("") @map("details_description")
+  skills          String         @default("") @map("details_skills")
+  quizTitle       String         @default("") @map("quiz_title")
+  quizDescription String         @default("") @map("quiz_description")
+  uploadedFiles   UploadedFile[]
+  questions       Question[]
+}
+
+model Coming {
+  id        Int      @id @default(autoincrement())
+  email     String
+  phone     String
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+}
+
+model Course {
+  id                    Int         @id @default(autoincrement())
+  userId                Int         @map("user")
+  user                  User        @relation(fields: [userId], references: [id])
+  selectedCourseIds     Json        @default("[]") @map("selected_course_ids")
+  title                 String
+  featuredImgName       String      @default("") @map("featured_img_name")
+  featuredImgFileId     String      @default("") @map("featured_img_file_id")
+  featuredImgUrl        String      @default("") @map("featured_img_url")
+  featuredVideoName     String      @default("") @map("featured_video_name")
+  featuredVideoFileId   String?     @map("featured_video_file_id")
+  featuredVideoUrl      String      @default("") @map("featured_video_url")
+  miniDescription       String      @default("") @map("mini_description")
+  description           String      @default("")
+  certificate           String      @default("")
+  price                 Float       @default(0)
+  category              String      @default("")
+  status                String      @default("Archived")
+  name                  String      @default("")
+  commission            Float       @default(0)
+  instructorName        String?     @map("instructor_name")
+  instructorTitle       String?     @map("instructor_title")
+  instructorDescription String?     @map("instructor_description")
+  chapters              Chapter[]
+  reviews               Review[]
+  quizzes               QuizScore[]
+  durationHours         Int         @default(1) @map("duration_hours")
+  ratingsTotal          Int         @default(0) @map("ratings_total")
+  ratingsAverage        Float       @default(1) @map("ratings_average")
+  ratingsOne            Int         @default(0) @map("ratings_one")
+  ratingsTwo            Int         @default(0) @map("ratings_two")
+  ratingsThree          Int         @default(0) @map("ratings_three")
+  ratingsFour           Int         @default(0) @map("ratings_four")
+  ratingsFive           Int         @default(0) @map("ratings_five")
+  resourcesCount        Int         @default(0) @map("resources_count")
+  createdAt             DateTime    @default(now()) @map("created_at")
+  updatedAt             DateTime    @updatedAt @map("updated_at")
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user")
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  text      String
+  product   String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+}
+
+model Payout {
+  id                Int      @id @default(autoincrement())
+  userId            Int      @map("user")
+  user              User     @relation(fields: [userId], references: [id])
+  username          String?
+  email             String?
+  amount            Float
+  role              String   @default("User")
+  status            String   @default("Pending Approval")
+  bankAccountName   String?  @map("bank_account_name")
+  bankAccountNumber String?  @map("bank_account_number")
+  bankName          String?  @map("bank_name")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+}
+
+model Question {
+  id        Int      @id @default(autoincrement())
+  chapterId Int      @map("chapter_id")
+  chapter   Chapter  @relation(fields: [chapterId], references: [id])
+  question  String   @default("")
+  options   String[] @default([])
+  answer    Int      @default(0)
+}
+
+model QuizScore {
+  id        Int      @id @default(autoincrement())
+  quizId    String
+  title     String?
+  score     Int      @default(0)
+  courseId  Int
+  course    Course   @relation(fields: [courseId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Review {
+  id           Int      @id @default(autoincrement())
+  userId       Int      @map("user")
+  user         User     @relation(fields: [userId], references: [id])
+  courseId     Int      @map("course_id")
+  course       Course   @relation(fields: [courseId], references: [id])
+  instructorId Int      @map("instructor_id")
+  response     String
+  star         Int
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+}
+
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../generated/prisma"
+  previewFeatures = ["prismaSchemaFolder"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Signal {
+  id        Int      @id @default(autoincrement())
+  userId    Int?     @map("user")
+  user      User?    @relation(fields: [userId], references: [id])
+  price     String
+  stopLoss  String   @map("stop_loss")
+  currency  String
+  orderType String   @default("BUY") @map("order_type")
+  profit1   String?  @map("profit_1")
+  profit2   String?  @map("profit_2")
+  profit3   String?  @map("profit_3")
+  info      String?
+  duration  String?
+  isRead    Boolean  @default(false) @map("is_read")
+  isDraft   String?  @map("is_draft")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+}
+
+model Statistics {
+  id                       Int      @id @default(autoincrement())
+  lastLogin                DateTime @default(now()) @map("last_login")
+  isActive                 Boolean  @default(false) @map("is_active")
+  deletedUserCount         Int      @default(0) @map("deleted_user_count")
+  userEnrolledToday        Int      @default(0) @map("user_enrolled_today")
+  userStatsTotalUsers      Int      @default(0) @map("user_stats_total_users")
+  userStatsActiveUsers     Int      @default(0) @map("user_stats_active_users")
+  userStatsInactiveUsers   Int      @default(0) @map("user_stats_inactive_users")
+  userStatsCourseCompleted Int      @default(0) @map("user_stats_course_completed")
+  userStatsEnrollRate      Float    @default(0) @map("user_stats_enroll_rate")
+  userStatsChurnRate       Float    @default(0) @map("user_stats_churn_rate")
+  reviewStatsTotal         Int      @default(0) @map("review_stats_total")
+  reviewStatsOne           Int      @default(0) @map("review_stats_one")
+  reviewStatsTwo           Int      @default(0) @map("review_stats_two")
+  reviewStatsThree         Int      @default(0) @map("review_stats_three")
+  reviewStatsFour          Int      @default(0) @map("review_stats_four")
+  reviewStatsFive          Int      @default(0) @map("review_stats_five")
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @updatedAt @map("updated_at")
+}
+
+model Tickets {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user")
+  user        User     @relation(fields: [userId], references: [id])
+  subject     String
+  email       String
+  description String
+  category    String
+  status      String   @default("Open")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+}
+
+model Transaction {
+  id                Int       @id @default(autoincrement())
+  userId            Int       @map("user")
+  user              User      @relation(fields: [userId], references: [id])
+  product           String
+  transactionType   String    @map("transaction_type")
+  amount            Float
+  duration          Int       @default(0)
+  reference         String?
+  courseId          Int?      @map("course_id")
+  affiliateStatus   String    @default("Pending Approval") @map("affiliate_status")
+  completed         Boolean   @default(false)
+  active            Boolean   @default(false)
+  status            String    @default("Pending")
+  bookSessionName   String?   @map("book_session_name")
+  bookSessionNumber String?   @map("book_session_number")
+  bookSessionEmail  String?   @map("book_session_email")
+  bookSessionDate   DateTime? @map("book_session_date")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+}
+
+model UploadedFile {
+  id          Int     @id @default(autoincrement())
+  chapterId   Int     @map("chapter_id")
+  chapter     Chapter @relation(fields: [chapterId], references: [id])
+  name        String  @default("")
+  size        String  @default("")
+  type        String  @default("")
+  uniqueName  String  @default("") @map("unique_name")
+  url         String  @default("")
+  date        String  @default("")
+  title       String  @default("")
+  description String  @default("")
+  duration    String?
+  fileId      String? @map("file_id")
+}
+
+model User {
+  id                          Int       @id @default(autoincrement())
+  username                    String
+  firstname                   String?
+  lastname                    String?
+  phone                       String?
+  password                    String?
+  email                       String    @unique
+  about                       String?
+  skills                      String[]  @default([])
+  role                        String    @default("User")
+  refreshToken                String?
+  avatarName                  String    @default("")
+  avatarFileId                String    @default("")
+  avatarUrl                   String    @default("")
+  bankAccountName             String?
+  bankAccountNumber           String?
+  bankName                    String?
+  bankRecipientCode           String?
+  affiliateCommissionRate     Float     @default(0)
+  affiliateBalance            Float     @default(0)
+  affiliateCount              Int       @default(0)
+  affiliateConversion         Int       @default(0)
+  affiliateLifetimeEarnings   Float     @default(0)
+  affiliateWithdrawalCount    Int       @default(0)
+  affiliateDueDate            DateTime  @default("2025-05-31T23:59:59.999Z")
+  affiliateRefereeUserId      String?
+  affiliateRefereeDate        DateTime?
+  lastLogin                   DateTime  @default(now())
+  isActive                    Boolean   @default(false)
+  isDeleted                   Boolean   @default(false)
+  reviews                     Int       @default(0)
+  students                    Int       @default(0)
+  courses                     Int       @default(0)
+  notificationsRemindersPush  Boolean   @default(false)
+  notificationsRemindersEmail Boolean   @default(true)
+  notificationsRemindersSms   Boolean   @default(true)
+  notificationsUpdatesPush    Boolean   @default(false)
+  notificationsUpdatesEmail   Boolean   @default(true)
+  notificationsUpdatesSms     Boolean   @default(true)
+  notificationsOthersPush     Boolean   @default(false)
+  notificationsOthersEmail    Boolean   @default(true)
+  notificationsOthersSms      Boolean   @default(true)
+  isVerified                  Boolean   @default(false)
+  verificationCode            Int?
+  otpExpiry                   DateTime?
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
+
+  // Relations
+  course          Course[]
+  carts           Cart[]
+  bookSessions    BookSession[]
+  certificates    Certificate[]
+  notifications   Notification[]
+  payouts         Payout[]
+  review          Review[]
+  signals         Signal[]
+  tickets         Tickets[]
+  transactions    Transaction[]
+  videos          Video[]
+  userBookSession UserBookSession[]
+}
+
+model Video {
+  id          Int      @id @default(autoincrement()) @map("video")
+  userId      Int      @map("user")
+  user        User     @relation(fields: [userId], references: [id])
+  category    String
+  title       String
+  description String
+  videoUrl    String   @map("video_url")
+  duration    String?
+  views       Int      @default(50)
+  rating      Float    @default(4)
+  isPublic    Boolean  @default(false) @map("is_public")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+}

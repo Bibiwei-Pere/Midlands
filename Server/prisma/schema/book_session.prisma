@@ -1,0 +1,27 @@
+model UserBookSession {
+  id        Int      @id @default(autoincrement())
+  bookId    String
+  program   String
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BookSession {
+  id                Int       @id @default(autoincrement())
+  userId            Int       @map("user")
+  user              User      @relation(fields: [userId], references: [id])
+  program           String
+  bookSessionName   String    @default("") @map("book_session_name")
+  bookSessionNumber String    @default("") @map("book_session_number")
+  bookSessionEmail  String    @default("") @map("book_session_email")
+  bookSessionDate   DateTime? @map("book_session_date")
+  status            String    @default("Pending")
+  paymentMethod     String    @default("Paystack") @map("payment_method")
+  transactionId     String?   @map("transaction_id")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  Transaction Transaction[]
+}

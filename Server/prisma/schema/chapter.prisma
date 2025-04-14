@@ -1,0 +1,28 @@
+model Chapter {
+  id              Int            @id @default(autoincrement())
+  courseId        Int            @map("course_id")
+  course          Course         @relation(fields: [courseId], references: [id])
+  title           String         @default("") @map("details_title")
+  subtitle        String         @default("") @map("details_subtitle")
+  completed       Boolean        @default(false)
+  description     String         @default("") @map("details_description")
+  skills          String         @default("") @map("details_skills")
+  quizTitle       String         @default("") @map("quiz_title")
+  quizDescription String         @default("") @map("quiz_description")
+  uploadedFiles   UploadedFile[]
+  questions       Question[]
+
+  UserCourse UserCourse[]
+
+  UserChapter UserChapter[]
+}
+
+model UserChapter {
+  userId    Int
+  chapterId Int
+  completed Boolean @default(false)
+  user      User    @relation(fields: [userId], references: [id])
+  chapter   Chapter @relation(fields: [chapterId], references: [id])
+
+  @@id([userId, chapterId])
+}

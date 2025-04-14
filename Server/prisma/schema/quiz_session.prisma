@@ -1,0 +1,12 @@
+model QuizScore {
+  id        Int      @id @default(autoincrement())
+  quizId    String
+  title     String?
+  score     Int      @default(0)
+  courseId  Int
+  course    Course   @relation(fields: [courseId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  UserCourse UserCourse[]
+}

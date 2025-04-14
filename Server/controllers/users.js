@@ -1,34 +1,82 @@
-import User from "../models/User.js";
-import Course from "../models/Course.js";
-import Transaction from "../models/Transaction.js";
-import Statistics from "../models/Statistics.js";
-import bcrypt from "bcrypt";
+import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcrypt';
+
+const prisma = new PrismaClient();
 
 export const getAllUsers = async (_req, res) => {
-  const users = await User.find().sort({ createdAt: -1 }).lean();
-  if (!users?.length) return res.status(400).json({ message: "No users found" });
-  res.json(users);
+  try {
+    const users = await prisma.user.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!users?.length) {
+      return res.status(400).json({ message: 'No users found' });
+    }
+
+    res.json(users);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
 };
 
 export const getUser = async (req, res) => {
   const { userId } = req.params;
 
   try {
-    // Fetch user details and exclude the password field
-    const user = await User.findById(userId).lean();
-    if (!user) return res.status(400).json({ message: "No user found" });
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(userId) },
+      select: {
+        id: true,
+        username: true,
+        firstname: true,
+        lastname: true,
+        phone: true,
+        email: true,
+        role: true,
+        about: true,
+        skills: true,
+        avatarUrl: true,
+        bankAccountName: true,
+        bankAccountNumber: true,
+        bankName: true,
+        bankRecipientCode: true,
+        affiliateCommissionRate: true,
+        affiliateBalance: true,
+        affiliateCount: true,
+        affiliateConversion: true,
+        affiliateLifetimeEarnings: true,
+        affiliateWithdrawalCount: true,
+        affiliateDueDate: true,
+        affiliateRefereeUserId: true,
+        affiliateRefereeDate: true,
+        lastLogin: true,
+        isActive: true,
+        isDeleted: true,
+        reviews: true,
+        students: true,
+        courses: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
 
-    // Fetch transactions and certificates for the user
-    const transactions = await Transaction.find({ user: userId }).sort({ createdAt: -1 }).lean().exec();
+    if (!user) {
+      return res.status(404).json({ message: 'No user found' });
+    }
 
-    // Return merged user data with statistics and course details
+    const transactions = await prisma.transaction.findMany({
+      where: { userId: parseInt(userId) },
+      orderBy: { createdAt: 'desc' },
+    });
+
     res.json({
-      ...user, // User data
-      transactions, // User's transactions
+      ...user,
+      transactions,
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Internal server error" });
+    console.error('Error fetching user:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -36,35 +84,38 @@ export const getUserAffiliateChart = async (req, res) => {
   const { userId } = req.params;
 
   try {
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: "User not found" });
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(userId) },
+    });
 
-    // Find users with affiliate.referee.userId matching the requested userId
-    const referees = await User.find({ "affiliate.referee.userId": userId });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
 
-    // Define each month
+    const referees = await prisma.user.findMany({
+      where: { affiliateRefereeUserId: parseInt(userId) },
+    });
+
     const months = [
-      "January",
-      "February",
-      "March",
-      "April",
-      "May",
-      "June",
-      "July",
-      "August",
-      "September",
-      "October",
-      "November",
-      "December",
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
 
-    // Monthly data calculation
     const monthlyData = months.map((month, index) => ({
       month,
-      users: referees.filter((ref) => new Date(ref.affiliate.referee.date).getMonth() === index).length,
+      users: referees.filter((ref) => new Date(ref.affiliateRefereeDate).getMonth() === index).length,
     }));
 
-    // Weekly data calculation
     const today = new Date();
     const last7Days = Array.from({ length: 7 }, (_, i) => {
       const date = new Date();
@@ -73,52 +124,65 @@ export const getUserAffiliateChart = async (req, res) => {
     });
 
     const weeklyData = last7Days.map((date) => ({
-      date: date.toISOString().split("T")[0], // Format as YYYY-MM-DD
-      users: referees.filter((ref) => new Date(ref.affiliate.referee.date).toDateString() === date.toDateString())
-        .length,
+      date: date.toISOString().split('T')[0],
+      users: referees.filter(
+        (ref) => new Date(ref.affiliateRefereeDate).toDateString() === date.toDateString()
+      ).length,
     }));
 
-    // Send response with both monthly and weekly data
     res.json({ success: true, monthlyData, weeklyData });
   } catch (error) {
-    console.error("Error generating chart data:", error);
-    res.status(500).json({ message: "Internal server error" });
+    console.error('Error generating affiliate chart:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
 export const postUser = async (req, res) => {
   const { firstname, lastname, phone, username, email, role, password } = req.body;
-  console.log(req.body);
-  if (!username) return res.status(400).json({ message: "Username field is required" });
-  if (!password) return res.status(400).json({ message: "Password field is required" });
-  if (!firstname) return res.status(400).json({ message: "Firstname field is required" });
-  if (!phone) return res.status(400).json({ message: "Phone field is required" });
-  if (!email) return res.status(400).json({ message: "Email field is required" });
 
-  const duplicateUsername = await User.findOne({ username }).collation({ locale: "en", strength: 2 }).lean().exec();
-  if (duplicateUsername) return res.status(400).json({ message: "Duplicate username" });
-  const duplicateEmail = await User.findOne({ email }).collation({ locale: "en", strength: 2 }).lean().exec();
-  if (duplicateEmail) return res.status(400).json({ message: "Email address already exist!" });
+  if (!username) return res.status(400).json({ message: 'Username field is required' });
+  if (!password) return res.status(400).json({ message: 'Password field is required' });
+  if (!firstname) return res.status(400).json({ message: 'Firstname field is required' });
+  if (!phone) return res.status(400).json({ message: 'Phone field is required' });
+  if (!email) return res.status(400).json({ message: 'Email field is required' });
 
   try {
-    const hashedPwd = await bcrypt.hash(password, 10);
-    const user = await User.create({
-      firstname,
-      lastname,
-      phone,
-      username,
-      email,
-      role,
-      password: hashedPwd,
+    const duplicateUsername = await prisma.user.findFirst({
+      where: { username: { equals: username, mode: 'insensitive' } },
     });
-    user.lastLogin = new Date();
-    user.isActive = true;
-    if (user) {
-      await user.save();
-      return res.status(200).json({ message: `New user ${username} created` });
-    } else return res.status(400).json({ message: "Invalid user data received" });
+
+    if (duplicateUsername) {
+      return res.status(400).json({ message: 'Duplicate username' });
+    }
+
+    const duplicateEmail = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } },
+    });
+
+    if (duplicateEmail) {
+      return res.status(400).json({ message: 'Email address already exists!' });
+    }
+
+    const hashedPwd = await bcrypt.hash(password, 10);
+
+    const user = await prisma.user.create({
+      data: {
+        firstname,
+        lastname,
+        phone,
+        username,
+        email,
+        role: role || 'User',
+        password: hashedPwd,
+        lastLogin: new Date(),
+        isActive: true,
+      },
+    });
+
+    res.status(200).json({ message: `New user ${username} created` });
   } catch (error) {
-    return res.status(500).json({ message: "Internal server error", error });
+    console.error('Error creating user:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -132,129 +196,293 @@ export const updateUser = async (req, res) => {
     email,
     role,
     passwordReset,
-    avatar,
+    avatarUrl,
     about,
     skills,
-    bankDetails,
-    activeCourseList,
-    affiliate,
-    notifications,
-    quizData, // Quiz data coming from the request
+    bankAccountName,
+    bankAccountNumber,
+    bankName,
+    bankRecipientCode,
+    affiliateCommissionRate,
+    affiliateBalance,
+    affiliateCount,
+    affiliateConversion,
+    affiliateLifetimeEarnings,
+    affiliateWithdrawalCount,
+    affiliateDueDate,
+    notificationsRemindersPush,
+    notificationsRemindersEmail,
+    notificationsRemindersSms,
+    notificationsUpdatesPush,
+    notificationsUpdatesEmail,
+    notificationsUpdatesSms,
+    notificationsOthersPush,
+    notificationsOthersEmail,
+    notificationsOthersSms,
+    quizData,
   } = req.body;
 
-  // Validate required fields
-  if (!userId) return res.status(400).json({ message: "ID field is required" });
-
-  // Find user by ID
-  const user = await User.findById(userId).exec();
-  if (!user) return res.status(400).json({ message: "User not found" });
-
-  // Handle profile updates
-  if (firstname) user.firstname = firstname;
-  if (lastname) user.lastname = lastname;
-  if (username) {
-    const duplicateUsername = await User.findOne({ username }).collation({ locale: "en", strength: 2 }).lean().exec();
-    if (duplicateUsername) return res.status(400).json({ message: "Duplicate username" });
-    else user.username = username;
+  if (!userId) {
+    return res.status(400).json({ message: 'ID field is required' });
   }
-  if (email) {
-    const duplicateEmail = await User.findOne({ email }).collation({ locale: "en", strength: 2 }).lean().exec();
-    if (duplicateEmail) return res.status(400).json({ message: "Email address already exists!" });
-    else user.email = email;
-  }
-  if (phone) user.phone = phone;
-  if (role) user.role = role;
 
-  if (passwordReset) {
-    if (!passwordReset.isGoogleSignIn) {
-      if (!passwordReset.currentPassword)
-        return res.status(400).json({ message: "Current password field is required" });
-      if (passwordReset.password !== passwordReset.confirmPassword)
-        return res.status(400).json({ message: "Passwords do not match" });
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(userId) },
+    });
 
-      const isPasswordValid = await bcrypt.compare(passwordReset.currentPassword, user.password);
-      if (!isPasswordValid) return res.status(400).json({ message: "Current Password is incorrect" });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
     }
 
-    const hashedPwd = await bcrypt.hash(passwordReset.password, 10);
-    user.password = hashedPwd;
-  }
-  if (avatar) user.avatar = avatar;
-  if (activeCourseList) user.activeCourseList = activeCourseList;
-  if (affiliate) user.affiliate = affiliate;
-  if (about) user.about = about;
-  if (skills) user.skills = skills;
-  if (notifications) user.notifications = notifications;
-  if (bankDetails) user.bankDetails = bankDetails;
+    // Validate unique fields
+    if (username && username !== user.username) {
+      const duplicateUsername = await prisma.user.findFirst({
+        where: { username: { equals: username, mode: 'insensitive' } },
+      });
+      if (duplicateUsername) {
+        return res.status(400).json({ message: 'Duplicate username' });
+      }
+    }
 
-  // Handle quiz submission logic
-  if (quizData && quizData.courseId && quizData.quizTitle && quizData.score !== undefined) {
-    const { courseId, quizTitle: title, score, chapterId } = quizData;
+    if (email && email !== user.email) {
+      const duplicateEmail = await prisma.user.findFirst({
+        where: { email: { equals: email, mode: 'insensitive' } },
+      });
+      if (duplicateEmail) {
+        return res.status(400).json({ message: 'Email address already exists!' });
+      }
+    }
 
-    // Check if the course exists in the user's active course list
-    const course = user.activeCourseList.find((course) => course.courseId === courseId);
-    if (!course)
-      return res.status(400).json({ message: `Course with ID ${courseId} not found in user's active courses` });
+    // Handle password reset
+    let hashedPwd = user.password;
+    if (passwordReset) {
+      if (!passwordReset.isGoogleSignIn) {
+        if (!passwordReset.currentPassword) {
+          return res.status(400).json({ message: 'Current password field is required' });
+        }
+        if (passwordReset.password !== passwordReset.confirmPassword) {
+          return res.status(400).json({ message: 'Passwords do not match' });
+        }
 
-    // Check if the quiz has already been submitted
-    const existingQuiz = course.quiz.find((quiz) => quiz.quizId === chapterId);
-    if (existingQuiz)
-      return res.status(400).json({
-        message: `You have already submitted the quiz for this chapter.`,
+        const isPasswordValid = await bcrypt.compare(passwordReset.currentPassword, user.password || '');
+        if (!isPasswordValid) {
+          return res.status(400).json({ message: 'Current Password is incorrect' });
+        }
+      }
+
+      hashedPwd = await bcrypt.hash(passwordReset.password, 10);
+    }
+
+    // Handle quiz submission
+    if (quizData && quizData.courseId && quizData.quizTitle && quizData.score !== undefined) {
+      const { courseId, quizTitle: title, score, chapterId } = quizData;
+
+      // Check course enrollment
+      const userCourse = await prisma.userCourse.findFirst({
+        where: {
+          userId: parseInt(userId),
+          courseId: parseInt(courseId),
+        },
+        include: { quizzes: true, chapters: true, userChapter: true },
       });
 
-    // Add the new quiz score to the course's quiz array
-    course.quiz.push({ title, score, quizId: chapterId });
+      if (!userCourse) {
+        return res.status(400).json({ message: `Course with ID ${courseId} not found in user's courses` });
+      }
 
-    // Find the current chapter based on chapterId
-    const currentChapterIndex = course.chapters.findIndex((chapter) => chapter.chapterId === chapterId);
+      // Check if quiz has already been submitted
+      const existingQuiz = userCourse.quizScores?.find((quiz) => quiz.quizId === chapterId.toString());
+      if (existingQuiz) {
+        return res.status(400).json({ message: 'You have already submitted the quiz for this chapter.' });
+      }
 
-    // If the current chapter exists and is valid, mark the next chapter as completed
-    if (currentChapterIndex !== -1 && currentChapterIndex < course.chapters.length - 1) {
-      // Mark the current chapter as completed
-      course.chapters[currentChapterIndex].completed = true;
+      // Create quiz score
+      await prisma.quizScore.create({
+        data: {
+          quizId: chapterId.toString(),
+          title,
+          score,
+          courseId: parseInt(courseId),
+          userCourses: {
+            connect: {
+              userId_courseId: {
+                userId: parseInt(userId),
+                courseId: parseInt(courseId),
+              },
+            },
+          },
+        },
+      });
 
-      // Mark the next chapter as completed
-      course.chapters[currentChapterIndex + 1].completed = true;
+      // Update chapter completion in UserChapter
+      const chapters = await prisma.chapter.findMany({
+        where: { courseId: parseInt(courseId) },
+        orderBy: { id: 'asc' }, // Ensure consistent order
+      });
+
+      const currentChapterIndex = chapters.findIndex((chapter) => chapter.id === parseInt(chapterId));
+      if (currentChapterIndex === -1) {
+        return res.status(400).json({ message: `Chapter with ID ${chapterId} not found in course` });
+      }
+
+      // Mark current chapter as completed
+      await prisma.userChapter.upsert({
+        where: {
+          userId_chapterId: {
+            userId: parseInt(userId),
+            chapterId: parseInt(chapterId),
+          },
+        },
+        update: {
+          completed: true,
+        },
+        create: {
+          userId: parseInt(userId),
+          chapterId: parseInt(chapterId),
+          completed: true,
+        },
+      });
+
+      // Mark next chapter as accessible if it exists
+      if (currentChapterIndex < chapters.length - 1) {
+        const nextChapterId = chapters[currentChapterIndex + 1].id;
+        await prisma.userChapter.upsert({
+          where: {
+            userId_chapterId: {
+              userId: parseInt(userId),
+              chapterId: nextChapterId,
+            },
+          },
+          update: {
+            completed: false, // Ensure it’s accessible but not completed
+          },
+          create: {
+            userId: parseInt(userId),
+            chapterId: nextChapterId,
+            completed: false,
+          },
+        });
+      }
     }
+
+    // Update user data
+    const updatedUser = await prisma.user.update({
+      where: { id: parseInt(userId) },
+      data: {
+        firstname: firstname || user.firstname,
+        lastname: lastname || user.lastname,
+        phone: phone || user.phone,
+        username: username || user.username,
+        email: email || user.email,
+        role: role || user.role,
+        password: hashedPwd,
+        avatarUrl: avatarUrl || user.avatarUrl,
+        about: about || user.about,
+        skills: skills || user.skills,
+        bankAccountName: bankAccountName || user.bankAccountName,
+        bankAccountNumber: bankAccountNumber || user.bankAccountNumber,
+        bankName: bankName || user.bankName,
+        bankRecipientCode: bankRecipientCode || user.bankRecipientCode,
+        affiliateCommissionRate:
+          affiliateCommissionRate !== undefined ? affiliateCommissionRate : user.affiliateCommissionRate,
+        affiliateBalance: affiliateBalance !== undefined ? affiliateBalance : user.affiliateBalance,
+        affiliateCount: affiliateCount !== undefined ? affiliateCount : user.affiliateCount,
+        affiliateConversion:
+          affiliateConversion !== undefined ? affiliateConversion : user.affiliateConversion,
+        affiliateLifetimeEarnings:
+          affiliateLifetimeEarnings !== undefined
+            ? affiliateLifetimeEarnings
+            : user.affiliateLifetimeEarnings,
+        affiliateWithdrawalCount:
+          affiliateWithdrawalCount !== undefined
+            ? affiliateWithdrawalCount
+            : user.affiliateWithdrawalCount,
+        affiliateDueDate: affiliateDueDate || user.affiliateDueDate,
+        notificationsRemindersPush:
+          notificationsRemindersPush !== undefined
+            ? notificationsRemindersPush
+            : user.notificationsRemindersPush,
+        notificationsRemindersEmail:
+          notificationsRemindersEmail !== undefined
+            ? notificationsRemindersEmail
+            : user.notificationsRemindersEmail,
+        notificationsRemindersSms:
+          notificationsRemindersSms !== undefined
+            ? notificationsRemindersSms
+            : user.notificationsRemindersSms,
+        notificationsUpdatesPush:
+          notificationsUpdatesPush !== undefined
+            ? notificationsUpdatesPush
+            : user.notificationsUpdatesPush,
+        notificationsUpdatesEmail:
+          notificationsUpdatesEmail !== undefined
+            ? notificationsUpdatesEmail
+            : user.notificationsUpdatesEmail,
+        notificationsUpdatesSms:
+          notificationsUpdatesSms !== undefined
+            ? notificationsUpdatesSms
+            : user.notificationsUpdatesSms,
+        notificationsOthersPush:
+          notificationsOthersPush !== undefined
+            ? notificationsOthersPush
+            : user.notificationsOthersPush,
+        notificationsOthersEmail:
+          notificationsOthersEmail !== undefined
+            ? notificationsOthersEmail
+            : user.notificationsOthersEmail,
+        notificationsOthersSms:
+          notificationsOthersSms !== undefined ? notificationsOthersSms : user.notificationsOthersSms,
+      },
+    });
+
+    res.json({ message: 'Updated successfully' });
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({ message: 'Server error' });
   }
-
-  // if (bankDetails && bankDetails.bankName && bankDetails.accountName && bankDetails.accountNumber !== undefined) {
-  //   const { bankName, accountName, accountNumber } = bankDetails;
-
-  //   // Check if the bank already exists in the user's bank details
-  //   const existingBank = user.bankDetails.find((bank) => bank.bankName === bankName);
-  //   if (existingBank) return res.status(400).json({ message: `You have already added ${bankName}` });
-
-  //   // If not found, push the new bank details
-  //   user.bankDetails.push({ bankName, accountName, accountNumber });
-  // }
-
-  const updatedUser = await user.save();
-  console.log(updatedUser);
-  // Respond with success message
-  res.json({ message: `Updated successfully` });
 };
 
 export const deleteUser = async (req, res) => {
   const { userId } = req.params;
 
-  if (!userId) return res.status(400).json({ message: "User ID is required" });
+  if (!userId) {
+    return res.status(400).json({ message: 'User ID is required' });
+  }
 
-  const user = await User.findById(userId).exec();
-  if (!user) return res.status(400).json({ message: "User not found!" });
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(userId) },
+    });
 
-  const course = await Course.findOne({ user: userId }).lean().exec();
-  if (course) return res.status(400).json({ message: "User has Courses, can't delete" });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found!' });
+    }
 
-  let statistics = await Statistics.findOne();
+    const course = await prisma.course.findFirst({
+      where: { userId: parseInt(userId) },
+    });
 
-  statistics.deletedUserCount += 1;
+    if (course) {
+      return res.status(400).json({ message: "User has courses, can't delete" });
+    }
 
-  await statistics.save();
-  await user.deleteOne();
+    const statistics = await prisma.statistics.findFirst();
 
-  res.json({
-    message: "User as been deleted from the platform",
-  });
+    if (statistics) {
+      await prisma.statistics.update({
+        where: { id: statistics.id },
+        data: { deletedUserCount: { increment: 1 } },
+      });
+    }
+
+    await prisma.user.delete({
+      where: { id: parseInt(userId) },
+    });
+
+    res.json({ message: 'User has been deleted from the platform' });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
 };

@@ -1,0 +1,24 @@
+model Transaction {
+  id                Int          @id @default(autoincrement())
+  userId            Int          @map("user")
+  user              User         @relation(fields: [userId], references: [id])
+  product           String
+  transactionType   String       @map("transaction_type")
+  amount            Float
+  duration          Int          @default(0)
+  reference         String?
+  courseId          Int?         @map("course_id")
+  course            Course?      @relation(fields: [courseId], references: [id])
+  bookingSessionId  Int?         @map("bookSession_id")
+  bookSession       BookSession? @relation(fields: [bookingSessionId], references: [id])
+  affiliateStatus   String       @default("Pending Approval") @map("affiliate_status")
+  completed         Boolean      @default(false)
+  active            Boolean      @default(false)
+  status            String       @default("Pending")
+  bookSessionName   String?      @map("book_session_name")
+  bookSessionNumber String?      @map("book_session_number")
+  bookSessionEmail  String?      @map("book_session_email")
+  bookSessionDate   DateTime?    @map("book_session_date")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  updatedAt         DateTime     @updatedAt @map("updated_at")
+}

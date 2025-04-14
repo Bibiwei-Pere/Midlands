@@ -2,6 +2,9 @@ import B2 from "backblaze-b2";
 import { v4 as uuidv4 } from "uuid"; // You can install this with npm: npm install uuid
 import Course from "../models/Course.js"; // Import the Course model
 import path from "path";
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 const { BACKBAZE_KEY_ID, BACKBAZE_BUCKET_ID, BACKBAZE_KEY, BACKBAZE_KEY_NAME } = process.env;
 
@@ -93,13 +96,18 @@ export const generateSignedUrl = async (fileName) => {
   }
 };
 
+
+
 export const deleteFileFromB2 = async (req, res) => {
   const { fileName, fileId, courseId, fileType } = req.body; // Include courseId and fileType in the request body
   console.log(req.body);
-  if (!fileType) return res.status(400).json({ message: "File type is required" });
-  try {
-    let update = {};
 
+  if (!fileType) {
+    return res.status(400).json({ message: 'File type is required' });
+  }
+
+  try {
+    // Delete file from Backblaze B2 if fileName and fileId are provided
     if (fileName && fileId) {
       await b2.authorize();
       await b2.deleteFileVersion({
@@ -107,27 +115,65 @@ export const deleteFileFromB2 = async (req, res) => {
         fileId,
       });
     }
-    if (fileType === "featuredImg") {
-      update = { "featuredImg.name": "", "featuredImg.fileId": "", "featuredImg.url": "" };
-    } else if (fileType === "featuredVideo") {
-      update = { "featuredVideo.name": "", "featuredVideo.fileId": "", "featuredVideo.url": "" };
-    } else if (fileType === "uploadedFiles") {
-      // Remove from the uploadedFiles array by matching fileId
-      update = { $pull: { "chapters.$[].uploadedFiles": { fileId: fileId } } };
+
+    // Prepare update data based on fileType
+    let updateData = {};
+
+    if (fileType === 'featuredImg') {
+      updateData = {
+        featuredImgName: '',
+        featuredImgFileId: '',
+        featuredImgUrl: '',
+      };
+    } else if (fileType === 'featuredVideo') {
+      updateData = {
+        featuredVideoName: '',
+        featuredVideoFileId: '',
+        featuredVideoUrl: '',
+      };
+    } else if (fileType === 'uploadedFiles') {
+      // Fetch the course to get current chapters
+      const course = await prisma.course.findUnique({
+        where: { id: parseInt(courseId) },
+        include: { chapters: true },
+      });
+
+      if (!course) {
+        return res.status(404).json({ message: 'Course not found' });
+      }
+
+      // Update chapters by filtering out the file with matching fileId
+      const updatedChapters = course.chapters.map((chapter) => ({
+        ...chapter,
+        uploadedFiles: chapter.uploadedFiles?.filter((file) => file.fileId !== fileId) || [],
+      }));
+
+      updateData = {
+        chapters: {
+          set: updatedChapters.map((chapter) => ({
+            id: chapter.id,
+            ...chapter,
+          })),
+        },
+      };
     }
 
-    await Course.findByIdAndUpdate(courseId, update);
+    // Update the course in the database
+    await prisma.course.update({
+      where: { id: parseInt(courseId) },
+      data: updateData,
+    });
 
     // Return success response
     return res.json({
       success: true,
-      message: "File successfully deleted from Backblaze and course.",
+      message: 'File successfully deleted from Backblaze and course.',
     });
   } catch (error) {
-    console.error("Error deleting file from Backblaze or course:", error);
+    console.error('Error deleting file from Backblaze or course:', error);
     return res.status(500).json({
       success: false,
-      error: "Failed to delete file from Backblaze or course.",
+      error: 'Failed to delete file from Backblaze or course.',
     });
   }
 };

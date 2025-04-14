@@ -1,56 +1,116 @@
-import Certificate from "../models/Certificate.js";
-import User from "../models/User.js";
+// controllers/certificateController.js
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export const getAllCertificate = async (_req, res) => {
-  const certificate = await Certificate.find().lean();
-  if (!certificate?.length) return res.status(400).json({ message: "No certificate found" });
-  res.json(certificate);
+  try {
+    const certificates = await prisma.certificate.findMany({
+      include: { user: true },
+    });
+
+    if (!certificates?.length) {
+      return res.status(200).json([]);
+    }
+
+    res.json(certificates);
+  } catch (error) {
+    console.error('Get all certificates error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 };
 
 export const getUserCertificates = async (req, res) => {
   const { userId } = req.params;
-  const certificate = await Certificate.find({ user: userId }).sort({ createdAt: -1 }).lean();
 
-  if (!certificate) return res.status(400).json({ message: "No certificate found" });
-  res.json(certificate);
+  try {
+    const certificates = await prisma.certificate.findMany({
+      where: { userId: parseInt(userId) },
+      orderBy: { createdAt: 'desc' },
+      include: { user: true },
+    });
+
+    if (!certificates?.length) {
+      return res.status(200).json([]);
+    }
+
+    res.json(certificates);
+  } catch (error) {
+    console.error('Get user certificates error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 };
 
 export const postCertificate = async (req, res) => {
-  const { userId, category, title, size, courseId } = req.body;
+  const { userId, category, title, courseId, size } = req.body;
 
-  if (!category) return res.status(400).json({ message: "Category field is required" });
-  if (!title) return res.status(400).json({ message: "Title field is required" });
-  if (!courseId) return res.status(400).json({ message: "courseId field is required" });
-  if (!userId) return res.status(400).json({ message: "UserId field is required" });
-
-  const currentUser = await User.findById(userId).exec();
-  if (!currentUser) return res.status(400).json({ message: "CurrentUser not found" });
+  if (!category) {
+    return res.status(400).json({ message: 'Category field is required' });
+  }
+  if (!title) {
+    return res.status(400).json({ message: 'Title field is required' });
+  }
+  if (!courseId) {
+    return res.status(400).json({ message: 'courseId field is required' });
+  }
+  if (!userId) {
+    return res.status(400).json({ message: 'UserId field is required' });
+  }
 
   try {
-    const certificate = await Certificate.create({
-      user: userId,
-      category,
-      courseId,
-      title,
-      size: parseInt(size),
+    const currentUser = await prisma.user.findUnique({
+      where: { id: parseInt(userId) },
     });
 
-    if (certificate) return res.status(200).json({ message: `Download will begin shortly` });
-    else return res.status(400).json({ message: "Invalid certificate data received" });
+    if (!currentUser) {
+      return res.status(400).json({ message: 'CurrentUser not found' });
+    }
+
+    const certificate = await prisma.certificate.create({
+      data: {
+        userId: parseInt(userId),
+        category,
+        title,
+        courseId,
+        size: size ? parseInt(size) : 4,
+      },
+    });
+
+    if (certificate) {
+      return res.status(200).json({ message: 'Download will begin shortly' });
+    } else {
+      return res.status(400).json({ message: 'Invalid certificate data received' });
+    }
   } catch (error) {
-    return res.status(500).json({ message: "Internal server error" });
+    console.error('Post certificate error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
   }
 };
 
 export const deleteCertificate = async (req, res) => {
   const { certificateId } = req.body;
-  console.log("req.body");
-  console.log(req.body);
-  if (!certificateId) return res.status(400).json({ message: "Certificate ID required" });
+  console.log('req.body', req.body);
 
-  const certificate = await Certificate.findById(certificateId).exec();
-  if (!certificate) return res.status(400).json({ message: "Certificate not found!" });
+  if (!certificateId) {
+    return res.status(400).json({ message: 'Certificate ID required' });
+  }
 
-  await certificate.deleteOne();
-  res.json("Certificate successfully deleted");
+  try {
+    const certificate = await prisma.certificate.findUnique({
+      where: { id: parseInt(certificateId) },
+    });
+
+    if (!certificate) {
+      return res.status(400).json({ message: 'Certificate not found!' });
+    }
+
+    await prisma.certificate.delete({
+      where: { id: parseInt(certificateId) },
+    });
+
+    res.json('Certificate successfully deleted');
+  } catch (error) {
+    console.error('Delete certificate error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 };

@@ -1,0 +1,9 @@
+
+model Coming {
+  id        Int      @id @default(autoincrement())
+  email     String
+  phone     String
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+}
