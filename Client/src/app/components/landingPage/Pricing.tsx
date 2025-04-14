@@ -1,288 +1,215 @@
-"use client";
-import React, { useState } from "react";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Container } from "@/components/ui/containers";
-import { LandingTitle } from "@/components/ui/card";
-import check from "../assets/images/landingPage/check.svg";
-import Image from "next/image";
-import { ArrowUpRight } from "lucide-react";
-import { Reveal3 } from "../animations/Reveal";
-import dollar from "../assets/images/landingPage/$.svg";
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
-import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
-import { AlertDialog, AlertDialogContent, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { BookSession } from "../dashboard/RequestPayout";
+'use client'
+import React, { useState } from 'react';
+import { CheckCircle } from 'lucide-react';
 
-export const Pricing = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [programData, setProgramData] = useState({});
-  const { data: session } = useSession();
-  const navigation = useRouter();
+interface Feature {
+  text: string;
+}
+
+interface BasePlan {
+  id: number;
+  type: string;
+  subtitle: string | string[];
+  billingCycle: string;
+  popular: boolean;
+  features: string[];
+}
+
+interface StandardPlan extends BasePlan {
+  price: string;
+  subtitle: string;
+}
+
+interface OrganizationPlan extends BasePlan {
+  price: string[];
+  subtitle: string[];
+}
+
+type Plan = StandardPlan | OrganizationPlan;
+
+interface PricingData {
+  monthly: Plan[];
+  annual: Plan[];
+}
+
+const pricingData: PricingData = {
+  monthly: [
+    {
+      id: 1,
+      type: 'Local authority',
+      price: '$1',
+      subtitle: 'General',
+      billingCycle: 'Pay per course',
+      popular: true,
+      features: ['Access single course for 30 days']
+    },
+    {
+      id: 2,
+      type: 'Individual',
+      price: '$32.40',
+      subtitle: 'General',
+      billingCycle: 'Monthly',
+      popular: false,
+      features: ['Access over 18 courses for 30 days']
+    }
+  ],
+  annual: [
+    {
+      id: 1,
+      type: 'Local authority',
+      price: '$3000',
+      subtitle: 'Custom',
+      billingCycle: 'Annually',
+      popular: true,
+      features: ['Access over 18 courses for 365 days']
+    },
+    {
+      id: 2,
+      type: 'Organization',
+      price: ['$120', '$150', '$200'],
+      subtitle: ['Small organization', 'Medium organization', 'Large organization'],
+      billingCycle: 'Annually',
+      popular: false,
+      features: [
+        'Access over 18 courses for 365 days / 100 YP\'s',
+        'Access over 18 courses for 365 days / 500 YP\'s',
+        'Access over 18 courses for 365 days / Unlimited YP\'s'
+      ]
+    },
+    {
+      id: 3,
+      type: 'Individual',
+      price: '$32.40',
+      subtitle: 'General',
+      billingCycle: 'Annually',
+      popular: false,
+      features: ['Access over 18 courses for 365 days']
+    }
+  ]
+};
+
+interface PricingCardProps {
+  plan: Plan;
+  isOrganization?: boolean;
+}
+
+const PricingCard: React.FC<PricingCardProps> = ({ plan, isOrganization = false }) => {
+  // Type guard to check if this is an organization plan
+  const isOrganizationPlan = (plan: Plan): plan is OrganizationPlan => {
+    return Array.isArray((plan as OrganizationPlan).price);
+  };
+
   return (
-    <>
-      <Container id='paths' className='bg-pricing_bg'>
-        <Carousel className='relative w-full'>
-          <LandingTitle
-            title='Choose your path to Forex Mastery'
-            header='Explore our tailored courses to guide you from beginner to expert.'
-          />
-          <div className='absolute top-[50%] w-full flex items-center'>
-            <CarouselPrevious className='absolute left-[-8px]' />
-            <CarouselNext className='absolute right-[-8px]' />
+      <div className="bg-white rounded-2xl w-[400px] text-black shadow-sm overflow-hidden border border-gray-300">
+        <div className="p-6">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h3 className="text-lg font-medium text-gray-800">{plan.type}</h3>
+              {!isOrganization ? (
+                  <div className="mt-1">
+                    <span className="text-4xl font-bold">{isOrganizationPlan(plan) ? plan.price[0] : plan.price}</span>
+                    <span className="text-gray-500 ml-2 text-sm">
+                  {isOrganizationPlan(plan) ? plan.subtitle[0] : plan.subtitle}
+                </span>
+                  </div>
+              ) : (
+                  <div className="space-y-3 mt-3">
+                    {isOrganizationPlan(plan) && plan.price.map((price, index) => (
+                        <div key={index} className="flex items-baseline">
+                          <span className="text-2xl font-bold">{price}</span>
+                          <span className="text-gray-500 ml-2 text-sm">{plan.subtitle[index]}</span>
+                        </div>
+                    ))}
+                  </div>
+              )}
+            </div>
+            {plan.popular && (
+                <span className="bg-red-100 text-chsprimary text-xs font-medium px-2 py-1 rounded">
+              Popular
+            </span>
+            )}
           </div>
 
-          <CarouselContent className='flex mx-auto max-w-[1284px] mt-8 lg:mt-14 pb-5'>
-            {pricingData.map((item, index: number) => (
-              <CarouselItem
-                key={index}
-                className={`relative pricing_bg flex items-center justify-center gap-4 max-w-[320px] ${
-                  item.title === "Masters/Strategy" || item.title === "Smart Trader Pack"
-                    ? " h-[555px]"
-                    : "h-[511px] lg:top-9"
-                } px-8 py-6`}
-              >
-                <div className='flex flex-col items-center gap-8'>
-                  <div className='flex flex-col gap-2 items-center'>
-                    <h5 className='text-[14px] font-medium'>{item.title}</h5>
-                    <div className='flex text-lg gap-2 items-center'>
-                      ₦ <h1>{item.amount}</h1>
-                    </div>
-                    <span className='line-through text-gray-300 text-[14px]'>₦ {item.oldAmount}</span>
-                  </div>
-                  <div className='flex flex-col gap-3'>
-                    {item.list.map((item) => (
-                      <Reveal3 key={item}>
-                        <div className='flex gap-3 items-center'>
-                          <Image src={check} alt='check' />
-                          <p>{item}</p>
-                        </div>
-                      </Reveal3>
-                    ))}
-                    <Button
-                      onClick={() => {
-                        localStorage.setItem("redirectUrl", `/dashboard/course/${item.id}`);
-                        navigation.push(`/dashboard/course/${item.id}`);
-                      }}
-                      className='flex items-center gap-2'
-                    >
-                      Start Learning
-                      <ArrowUpRight className='w-5' />
-                    </Button>
-                  </div>
-                </div>
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-        </Carousel>
-      </Container>
-      <Container className='bg-pricing_bg'>
-        <Carousel
-          className='relative w-full'
-          // plugins={[plugin.current]}
-          // onMouseEnter={plugin.current.stop}
-          // onMouseLeave={plugin.current.reset}
-        >
-          <LandingTitle title='Private Mentorship' header='' />
-          <div className='absolute top-[50%] w-full flex items-center'>
-            <CarouselPrevious className='absolute left-[-8px]' />
-            <CarouselNext className='absolute right-[-8px]' />
-          </div>
+          <p className="text-gray-500 text-sm mb-6">{plan.billingCycle}</p>
 
-          <CarouselContent className='flex w-full mx-auto max-w-[1284px] mt-8 pb-5'>
-            {pricingData2.map((item, index: number) => (
-              <CarouselItem
-                key={index}
-                className={`relative pricing_bg flex-shrink-0 m-0 p-0 flex items-center justify-center gap-4 max-w-[320px] h-[531px]
-               px-8 py-6`}
-              >
-                <div className='object-cover flex flex-col items-center gap-8'>
-                  <div className='flex flex-col gap-2 items-center'>
-                    <h5 className='text-[14px] font-medium'>{item.title}</h5>
-                    <div className='flex text-lg gap-2 items-center'>
-                      <Image src={dollar} alt='dollar' />
-                      <h1>{item.amount}</h1>
-                    </div>
-                    <span className='line-through text-gray-300 text-[14px]'>$ {item.oldAmount}</span>
-                  </div>
-                  <div className='flex flex-col gap-3'>
-                    {item.list.map((item) => (
-                      <Reveal3 key={item}>
-                        <div className='flex items-start gap-3'>
-                          <Image src={check} alt='check' />
-                          <p>{item}</p>
-                        </div>
-                      </Reveal3>
-                    ))}
-                    {session ? (
-                      <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
-                        <AlertDialogTrigger onClick={() => setProgramData(item?.data)} asChild>
-                          <Button className='flex items-center gap-2'>
-                            Start Learning
-                            <ArrowUpRight className='w-5' />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <BookSession setIsOpen={setIsOpen} programData={programData} />
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    ) : (
-                      <Link href='/dashboard'>
-                        <Button className='flex items-center gap-2'>
-                          Start Learning
-                          <ArrowUpRight className='w-5' />
-                        </Button>
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              </CarouselItem>
+          <button className="w-full bg-chsprimary hover:opacity-70 text-white font-medium py-2 px-4 rounded-2xl transition duration-200">
+            Get started
+          </button>
+        </div>
+
+        <div className="border-t border-gray-200 p-6">
+          <h4 className="font-bold text-sm uppercase text-gray-700 mb-4">FEATURES</h4>
+          <ul className="space-y-3">
+            {plan.features.map((feature, index) => (
+                <li key={index} className="flex items-start">
+                  <CheckCircle className="h-5 w-5 text-chsprimary mr-2 flex-shrink-0" />
+                  <span className="text-gray-600 text-sm">{feature}</span>
+                </li>
             ))}
-          </CarouselContent>
-        </Carousel>
-      </Container>
-    </>
+          </ul>
+        </div>
+      </div>
   );
 };
 
-const pricingData = [
-  {
-    title: "Beginner",
-    amount: "24,900",
-    list: [
-      "Access to Recorded videos for one month",
-      "Access to Mentor's contact",
-      "Access to Weekly general review of the beginners program",
-      "Certificate of completion",
-    ],
-    oldAmount: "40,000",
-    id: "672581394d7fb1baf0983b30",
-  },
-  {
-    title: "Smart Trader Pack",
-    amount: "129,900",
-    list: [
-      "Combination of all 3 courses",
-      "Access to Forex Mastery Foundations course",
-      "Access to Intermediate trading strategies course",
-      "Access to Advanced market techniques course",
-      "Certificate of completion upon finishing the bundle",
-    ],
-    oldAmount: "270,000",
-    id: "672a7ecf131c8c4834606d02",
-  },
-  {
-    title: "Masters/Strategy",
-    amount: "89,900",
-    list: [
-      "All in Intermediate plus access to Telegram channel",
-      "Access to Weekly analysis",
-      "Access to funding upon qualifications",
-      "Access to helpful financial reports",
-      "Access to intermittent dinner and traders hangouts",
-      "Graduation and certification",
-    ],
-    oldAmount: "150,000",
-    id: "6725e17f61ada31c6e6736e9",
-  },
-  {
-    title: "Intermediate",
-    amount: "49,900",
-    list: [
-      "Access to Recorded videos for one month",
-      "Access to Mentor's contact",
-      "Access to Weekly general review of the intermediate program",
-      "Certificate of completion",
-      "Access to trading room",
-    ],
-    oldAmount: "80,000",
-    id: "6725c3e33af7a0c2afea100b",
-  },
-];
+type BillingCycle = 'monthly' | 'annual';
 
-const pricingData2 = [
-  {
-    title: "Instructor's strategies ONLY",
-    amount: "100",
-    list: ["3 meeting times in a week ONLY (Zoom or on-site)"],
-    oldAmount: "150",
-    data: {
-      amount: 100,
-      option: "Instructor's strategies (Zoom - $100)",
-      description:
-        "Participate in a focused session via Zoom to learn the instructor's unique trading strategies. Gain insights into market analysis and trading techniques that cater to your style for a comprehensive overview at an affordable price.",
-    },
-  },
-  {
-    title: "Trading Floor Experience",
-    amount: "150",
-    list: [
-      "General class participation @ the trading floor",
-      "Access to Weekly analysis",
-      "Access to telegram channel",
-      "1 month in class @ Gwarimpa campus",
-      "3 times a week",
-      "Certificate of participation",
-    ],
-    oldAmount: "200",
-    data: {
-      amount: 150,
-      option: "Trading Floor Experience ($150)",
-      description:
-        "Step onto the live trading floor for an immersive, hands-on experience in real-time market action. Perfect for those ready to take their trading journey to the next level with expert guidance and peer collaboration.",
-    },
-  },
-  {
-    title: "Private Mentorship",
-    amount: "250",
-    list: [
-      "Access to Weekly analysis",
-      "Access to telegram channel",
-      "Certificate of participation",
-      "2 months Duration on Zoom",
-      "2 times a week",
-      // "3 months mentorship",
-    ],
-    oldAmount: "300",
-    data: {
-      amount: 250,
-      option: "Private Mentorship (Zoom - $250)",
-      description:
-        "Receive one-on-one mentorship via Zoom, tailored specifically to your trading style. Learn advanced strategies and get personalized support from the comfort of your home for two months of deep, impactful learning.",
-    },
-  },
-  {
-    title: "Exclusive Trading Floor Experience",
-    amount: "400",
-    list: [
-      "All in Private Mentorship plus",
-      "One on one with Dr Jude",
-      "3 months extra Mentorship after the regular class sessions. So we'll be together for 6 months in total",
-      "3 months Duration in class @ The Trading Floor or Zoom as preferred",
-    ],
-    oldAmount: "450",
-    data: {
-      amount: 400,
-      option: "Exclusive Trading Floor Mentorship ($400)",
-      description:
-        "Gain exclusive access to our premium in-person mentorship at the trading floor. This high-level program offers a personalized, intensive two-month experience designed to elevate your trading to expert levels.",
-    },
-  },
-  {
-    title: "Life Mentorship",
-    amount: "1,000",
-    list: [
-      "All in Exclusive trading experience plus",
-      "6 months in class instead of 3 months",
-      "Life mentorship instead of 6 months. Meaning after the regular class sessions we'll be together UNTIL you're profitable and can stand on your own.",
-    ],
-    oldAmount: "2,000",
-    data: {
-      amount: 1000,
-      option: "Life Mentorship ($1,000)",
-      description:
-        "This trading program offers an enhanced exclusive experience, featuring a six-month in-class training duration instead of the standard three months. Participants will receive ongoing life mentorship beyond the initial training period, ensuring support until they become profitable and independent traders.",
-    },
-  },
-];
+const PricingSection: React.FC = () => {
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
+
+  const handleBillingToggle = (cycle: BillingCycle): void => {
+    setBillingCycle(cycle);
+  };
+
+  const plans = pricingData[billingCycle];
+
+  return (
+      <section className="py-16 text-black mt-12 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <p className="text-chsprimary font-medium">Pricing</p>
+            <h2 className="text-3xl font-bold mt-2 mb-4">Simple, transparent pricing</h2>
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              We believe Untitled should be accessible to all companies, no matter the size.
+            </p>
+
+            <div className="inline-flex p-1 mt-8 border border-gray-300 rounded-md bg-white">
+              <button
+                  className={`px-4 py-2 text-sm font-medium rounded-sm ${
+                      billingCycle === 'monthly'
+                          ? 'bg-gray-100 text-gray-900'
+                          : 'bg-transparent text-gray-500'
+                  }`}
+                  onClick={() => handleBillingToggle('monthly')}
+              >
+                Monthly billing
+              </button>
+              <button
+                  className={`px-4 py-2 text-sm font-medium rounded-sm ${
+                      billingCycle === 'annual'
+                          ? 'bg-gray-100 text-gray-900'
+                          : 'bg-transparent text-gray-500'
+                  }`}
+                  onClick={() => handleBillingToggle('annual')}
+              >
+                Annual billing
+              </button>
+            </div>
+          </div>
+
+          <div className="flex  justify-center flex-wrap gap-8">
+            {plans.map((plan) => (
+                <div key={plan.id} className={plan.type === 'Organization' ? 'col-span-1' : 'col-span-1'}>
+                  <PricingCard
+                      plan={plan}
+                      isOrganization={plan.type === 'Organization'}
+                  />
+                </div>
+            ))}
+          </div>
+        </div>
+      </section>
+  );
+};
+
+export default PricingSection;

@@ -7,6 +7,8 @@ const nextConfig = {
       "flagcdn.com",
       "lh3.googleusercontent.com",
       "f005.backblazeb2.com",
+      "images.pexels.com",
+      "images.unsplash.com"
     ],
   },
   eslint: {
