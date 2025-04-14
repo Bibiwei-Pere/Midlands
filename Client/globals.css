@@ -1,6 +1,25 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap');
+
+
+
+.bg-chsprimary{
+  @apply bg-[#C74720]
+}
+
+.text-chsprimary{
+  @apply text-[#C74720]
+}
+
+.text-chstext-primary{
+  @apply text-[#14151A]
+}
+
+.text-chstext-secondary{
+  @apply text-[#0F132499]
+}
 
 @layer base {
   :root {

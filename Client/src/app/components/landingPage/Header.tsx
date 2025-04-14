@@ -1,10 +1,10 @@
 "use client";
 import React from "react";
 import Link from "next/link";
-import Logo from "../assets/images/landingPage/LogoIcon.svg";
+import chsLogo from "../assets/images/landingPage/chsLogo.svg"
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { AlignRight } from "lucide-react";
+import {AlignRight, LogOut} from "lucide-react";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -13,20 +13,22 @@ const Header = () => {
   const pathname = usePathname();
   const { data: session } = useSession();
   return (
-    <div className='z-50 fixed bg-black top-0 py-4 right-0 left-0 shadow-sm'>
+    <div className='z-50 fixed bg-white top-0 py-4 right-0 left-0 shadow-sm'>
       <div className='hidden lg:flex lg:pl-6 xl:pl-20 lg:pr-8 xl:pr-24 justify-between items-center max-w-screen-2xl mx-auto'>
-        <div className='flex justify-start gap-9'>
+        <div className='flex items-center justify-start gap-9'>
           <div className='flex gap-1 items-center'>
-            <h6>Logo</h6>
+            <Link href='/'>
+            <Image src={chsLogo} alt="logo"  />
+            </Link>
           </div>
-          <ul className='flex gap-9'>
+          <ul className='flex items-cnter gap-9'>
             {navContent.map((item, index: number) => (
               <Link key={index} href={item.url}>
                 <p
-                  className={`hover:text-[#FFBE00] hover:font-medium border-b-2 pb-1 ${
+                  className={`hover:text-[#FFBE00] text-[16px] leading-6 tracking-[0.5px] text-chstext-primary hover:font-medium border-b-2 pb-1 ${
                     pathname === item.url
-                      ? "text-[#FFBE00] hover:text-white border-[#FFBE00] hover:border-white"
-                      : "border-black"
+                      ? "text-[#FFBE00]  border-[#FFBE00] hover:border-white"
+                      : "border-transparent"
                   }`}
                 >
                   {item.title}
@@ -38,27 +40,32 @@ const Header = () => {
         {session ? (
           <div className='flex gap-4 items-center'>
             <Link href='/dashboard'>
-              <Button variant={"secondary"}>Dashboard</Button>
+              <Button variant={"ghost"} className="text-chsprimary hover:underline hover:text-chsprimary">Dashboard</Button>
             </Link>
             <Link href='/auth/logout'>
-              <Button className='ml-0'>Logout</Button>
-            </Link>
+              <button className='px-8 py-3 text-red-600 border border-red-600 flex gap-2  font-medium rounded hover:opacity-75 transition-colors'>
+                logout
+                <LogOut className='w-5 text-red-600' />
+              </button>            </Link>
           </div>
         ) : (
           <div className='flex gap-4 items-center'>
             <Link target='_blank' rel='noopener noreferrer' href='/auth/signup'>
-              <Button variant={"secondary"}>Sign Up</Button>
-            </Link>
+              <Button variant={"ghost"} className="text-chsprimary">Sign Up</Button>           </Link>
+
             <Link target='_blank' rel='noopener noreferrer' href='/auth/login'>
-              <Button>Login</Button>
+              <button className='px-8 py-3 bg-chsprimary flex gap-2 text-white font-medium rounded hover:opacity-75 transition-colors'>
+                Login
+              </button>
             </Link>
           </div>
         )}
       </div>
       <div className='lg:hidden z-50 flex justify-between items-center pr-4 pl-3'>
         <div className='flex gap-1 items-center'>
-          <Image className='w-[40px]' src={Logo} alt='Logo' />
-          <h6>Logo</h6>
+          <Link href='/'>
+          <Image src={chsLogo} alt="logo"  />
+          </Link>
         </div>
         <MobileMenu />
       </div>
@@ -73,7 +80,7 @@ const MobileMenu = () => {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <AlignRight className='w-[30px] h-[30px] cursor-pointer' />
+        <AlignRight className='w-[30px] h-[30px] text-black cursor-pointer' />
       </SheetTrigger>
       <SheetContent>
         <div className='flex flex-col gap-5 mt-10'>
@@ -97,11 +104,11 @@ const MobileMenu = () => {
             </div>
           ) : (
             <div className='flex gap-4 items-center'>
-              <Link target='_blank' rel='noopener noreferrer' href='auth/signup'>
+              <Link target='_blank' rel='noopener noreferrer' href='/auth/signup'>
                 <Button variant={"secondary"}>Sign Up</Button>
               </Link>
-              <Link target='_blank' rel='noopener noreferrer' href='auth/login'>
-                <Button variant={"secondary"}>Login</Button>
+              <Link target='_blank' rel='noopener noreferrer' href='/auth/login'>
+                <Button>Login</Button>
               </Link>
             </div>
           )}
@@ -117,15 +124,19 @@ export const navContent = [
     title: "Home",
   },
   {
-    url: "#features",
-    title: "Features",
+    url: "/about-us",
+    title: "About Us",
   },
   {
-    url: "#testimonials",
-    title: "Testimonials",
+    url: "/courses",
+    title: "Courses",
   },
   {
-    url: "#faqs",
-    title: "FAQs",
+    url: "/pricing",
+    title: "Pricing",
+  },
+  {
+    url: "/contact",
+    title: "Contact Us",
   },
 ];

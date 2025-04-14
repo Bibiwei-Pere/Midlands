@@ -1,145 +1,245 @@
-"use client";
-import React from "react";
-import { Reveal1, Reveal3 } from "../animations/Reveal";
-import Image from "next/image";
-import ContactImage from "../assets/images/contact.png";
-import Arrow from "../assets/images/Arrow.svg";
-import Ornament from "../assets/images/Ornament.svg";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Headphones, PhoneCall } from "lucide-react";
+'use client'
+import React, { useState } from 'react';
+import { Mail, MapPin, Phone } from 'lucide-react';
 
-export const Contact = () => {
-  return (
-    <section className="relative py-24 lg:px-8 xl:px-24 px-4 hidden lg:block max-w-screen-2xl mx-auto">
-      <div className="bg-[#6C0871] rounded-xl p-10 flex gap-8">
-        <div className=" relative flex flex-col gap-8 justify-start items-start max-w-[60%]">
-          <Reveal1>
-            <h2 className="text-white">
-              Contact us today and let us know what you need
-            </h2>
-          </Reveal1>
-          <Reveal3>
-            <p className="text-white max-w-[80%]">
-              We invite you to explore the transformative potential of
-              PurpleDove ERP. Discover how our all-in-one platform can
-              streamline your business operations, improve efficiency, and drive
-              growth.
-            </p>
-          </Reveal3>
-          <Link
-            href="https://calendly.com/lassod/purpledove-webinar-session"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Button variant={"secondary"} className="mt-6">
-              Contact Us
-            </Button>
-          </Link>
-          <div className="absolute right-[-30%] top-0 ">
-            <Image className="mt-14 h-14" src={Arrow} alt="Arrow" />
-          </div>
-        </div>
-      </div>
-      <Image
-        className="absolute max-w-[440px] xl:max-w-[640px] bottom-0 right-0"
-        src={ContactImage}
-        alt="ContactImage"
-      />
-    </section>
-  );
-};
+interface FormData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneNumber: string;
+  message: string;
+}
 
-export const ContactPromo = () => {
-  // const phoneNumber = "+2347064699173";
-  // const phoneNumber2 = "+447983451470";
-  const emailAddress = "info@purpledove.net";
+const ContactUsPage: React.FC = () => {
+  const [country, setCountry] = useState<string>('US');
+  const [formData, setFormData] = useState<FormData>({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phoneNumber: '',
+    message: ''
+  });
+  const [agreeToPolicy, setAgreeToPolicy] = useState<boolean>(false);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Handle form submission logic here
+    console.log('Form submitted:', formData);
+    // Reset form or show success message
+  };
+
   return (
-    <section className="relative pt-0 xl:pt-24 pb-24 px-4 max-w-screen-2xl mx-auto overflow-hidden">
-      <div className="flex flex-col items-center gap-16">
-        <Reveal1>
-          <h2 className="max-w-[694px] text-center">
-            Contact us today and let us know what you need
-          </h2>
-        </Reveal1>
-        <div className="flex flex-col lg:flex-row gap-8 lg:gap-16">
-          <div className="border bg-white rounded-xl py-7 px-5 flex flex-col gap-6 w-full md:max-w-[354px] items-center">
-            <PhoneCall className="text-[#A700AF]" />
-            <div className="flex flex-col items-center gap-3">
-              <h5>Contact Us</h5>
-              <p className="text-center">
-                Contact us to seek help from us, we will help you as soon as
-                possible
+      <div className="bg-white  mt-12 text-black">
+        {/* Contact Info Section */}
+        <section className="py-12 ">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-12">
+              <p className="text-chsprimary font-medium">Contact us</p>
+              <h2 className="text-3xl font-bold mt-2 mb-4">We'd love to hear from you</h2>
+              <p className="text-gray-600 max-w-2xl mx-auto">
+                Our friendly team is always here to chat.
               </p>
-              {/*<div className="text-center">
-                <div className="relative inline-block text-md cursor-pointer group">
-                  <span className="underline-offset-4">
-                    <a href={`tel:${phoneNumber}`}>{phoneNumber}</a>
-                  </span>
-                  <div className="absolute w-full bg-white py-[2px] text-center top-10 left-0 opacity-0 invisible transform shadow-md transition-all duration-300 ease-in-out group-hover:opacity-100 group-hover:visible group-hover:top-[-40px] ">
-                    <p className="m-0 font-semibold">
-                      <a href={`tel:${phoneNumber}`}> Call </a>
-                    </p>
-                    <div className="absolute bottom-[-8px] left-[80%] transform -translate-x-1/2 border-t-[8px] border-l-[7px] border-r-[7px] border-b-0 border-solid border-t-white border-l-transparent border-r-transparent"></div>
-                  </div>
-                </div>{" "}
-                /{" "} 
-                <div className="relative inline-block text-md cursor-pointer group">
-                  <span className="underline-offset-4">
-                    <a href={`tel:${phoneNumber2}`}>{phoneNumber2}</a>
-                  </span>
-                  <div className="absolute w-full bg-white py-[2px] text-center top-10 left-0 opacity-0 invisible transform shadow-md transition-all duration-300 ease-in-out group-hover:opacity-100 group-hover:visible group-hover:top-[-40px]">
-                    <p className="m-0 font-semibold">
-                      <a href={`tel:${phoneNumber2}`}> Call </a>
-                    </p>
-                    <div className="absolute bottom-[-8px] left-[80%] transform -translate-x-1/2 border-t-[8px] border-l-[7px] border-r-[7px] border-b-0 border-solid border-t-white border-l-transparent border-r-transparent"></div>
-                  </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+              {/* Email Contact */}
+              <div className="text-center">
+                <div className="bg-red-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Mail className="text-chsprimary" size={20} />
                 </div>
-              </div>*/}
-              <Link href="/promo/contact">
-                <Button className="mt-6">Call us now</Button>
-              </Link>
+                <h3 className="font-semibold text-gray-900 mb-1">Email</h3>
+                <p className="text-gray-600 text-sm mb-2">Our friendly team is here to help.</p>
+                <a
+                    href="mailto:info@chsupport.org.uk"
+                    className="text-chsprimary hover:underline font-medium"
+                >
+                  info@chsupport.org.uk
+                </a>
+              </div>
+
+              {/* Office Contact */}
+              <div className="text-center">
+                <div className="bg-red-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <MapPin className="text-chsprimary" size={20} />
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-1">Office</h3>
+                <p className="text-gray-600 text-sm mb-2">Come say hello at our office HQ.</p>
+                <p className="text-chsprimary font-medium">142-143 Parrock Street Gravesend DA12 1EY</p>
+              </div>
+
+              {/* Phone Contact */}
+              <div className="text-center">
+                <div className="bg-red-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Phone className="text-chsprimary" size={20} />
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-1">Phone</h3>
+                <p className="text-gray-600 text-sm mb-2">Mon-Fri from 8am to 5pm.</p>
+                <a
+                    href="tel:02081331554"
+                    className="text-chsprimary hover:underline font-medium"
+                >
+                  02081331554
+                </a>
+              </div>
             </div>
           </div>
-          <div className="border bg-white rounded-xl py-7 px-5 flex flex-col gap-6 w-full md:max-w-[354px] items-center">
-            <Headphones className="text-[#A700AF]" />
-            <div className="flex flex-col items-center gap-3">
-              <h5>Customer Service</h5>
-              <p className="text-center">
-                Contact us to seek help from us, we will help you as soon as
-                possible
+        </section>
+
+        {/* Contact Form Section */}
+        <section className="py-12">
+          <div className="container mx-auto px-4 max-w-3xl">
+            <div className="text-center mb-12">
+              <p className="text-chsprimary font-medium">Contact us</p>
+              <h2 className="text-3xl font-bold mt-2 mb-4">Get in touch</h2>
+              <p className="text-gray-600">
+                We'd love to hear from you. Please fill out this form.
               </p>
-              <div className="text-center">
-                <div className="relative inline-block text-[18px] cursor-pointer group">
-                  <span className=" decoration-gray-500 underline-offset-4">
-                    <a href={`mailto:${emailAddress}`}>{emailAddress}</a>
-                  </span>
-                  <div className="absolute w-full bg-white p-1 text-center top-10 left-0 opacity-0 invisible transform shadow-md transition-all duration-300 ease-in-out group-hover:opacity-100 group-hover:visible group-hover:top-0">
-                    <p className="m-0  font-semibold">
-                      {" "}
-                      <a href={`mailto:${emailAddress}`}>{emailAddress}</a>
-                    </p>
-                    <div className="absolute bottom-[-8px] left-[80%] transform -translate-x-1/2 border-t-[8px] border-l-[7px] border-r-[7px] border-b-0 border-solid border-t-white border-l-transparent border-r-transparent"></div>
-                  </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* First Name */}
+                <div>
+                  <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
+                    First name
+                  </label>
+                  <input
+                      type="text"
+                      id="firstName"
+                      name="firstName"
+                      placeholder="First name"
+                      value={formData.firstName}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-[#C74720] focus:border-[#C74720]"
+                      required
+                  />
+                </div>
+
+                {/* Last Name */}
+                <div>
+                  <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
+                    Last name
+                  </label>
+                  <input
+                      type="text"
+                      id="lastName"
+                      name="lastName"
+                      placeholder="Last name"
+                      value={formData.lastName}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-[#C74720] focus:border-[#C74720]"
+                      required
+                  />
                 </div>
               </div>
-              <Link href="/promo/contact">
-                <Button className="mt-6">Contact us</Button>
-              </Link>
-            </div>
+
+              {/* Email */}
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  Email
+                </label>
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    placeholder="you@company.com"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-[#C74720] focus:border-[#C74720]"
+                    required
+                />
+              </div>
+
+              {/* Phone Number */}
+              <div>
+                <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-1">
+                  Phone number
+                </label>
+                <div className="flex">
+                  <select
+                      id="country"
+                      name="country"
+                      value={country}
+                      onChange={(e) => setCountry(e.target.value)}
+                      className="px-3 py-2 border border-r-0 border-gray-300 rounded-l-md shadow-sm focus:outline-none focus:ring-1 focus:ring-[#C74720] focus:border-[#C74720]"
+                  >
+                    <option value="US">US</option>
+                    <option value="UK">UK</option>
+                    <option value="CA">CA</option>
+                    <option value="AU">AU</option>
+                  </select>
+                  <input
+                      type="tel"
+                      id="phoneNumber"
+                      name="phoneNumber"
+                      placeholder="+1 (555) 000-0000"
+                      value={formData.phoneNumber}
+                      onChange={handleInputChange}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-r-md shadow-sm focus:outline-none focus:ring-1 focus:ring-[#C74720] focus:border-[#C74720]"
+                  />
+                </div>
+              </div>
+
+              {/* Message */}
+              <div>
+                <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
+                  Message
+                </label>
+                <textarea
+                    id="message"
+                    name="message"
+                    rows={4}
+                    placeholder="Leave us a message..."
+                    value={formData.message}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-[#C74720] focus:border-[#C74720]"
+                    required
+                />
+              </div>
+
+              {/* Privacy Policy Agreement */}
+              <div className="flex items-start">
+                <div className="flex items-center h-5">
+                  <input
+                      id="agreeToPolicy"
+                      name="agreeToPolicy"
+                      type="checkbox"
+                      checked={agreeToPolicy}
+                      onChange={() => setAgreeToPolicy(!agreeToPolicy)}
+                      className="h-4 w-4 text-chsprimary focus:ring-[#C74720] 0] border-gray-300 rounded"
+                      required
+                  />
+                </div>
+                <div className="ml-3 text-sm">
+                  <label htmlFor="agreeToPolicy" className="text-gray-600">
+                    You agree to our friendly <a href="/privacy-policy" className="text-chsprimary underline">privacy policy</a>.
+                  </label>
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <button
+                  type="submit"
+                  disabled={!agreeToPolicy}
+                  className={`w-full px-6 py-3 rounded-2xl  text-white font-medium shadow-sm transition ${
+                      agreeToPolicy ? 'hover:opacity-70 bg-chsprimary' : 'bg-gray-500 cursor-not-allowed'
+                  }`}
+              >
+                Send message
+              </button>
+            </form>
           </div>
-        </div>
+        </section>
       </div>
-      <Image
-        className="absolute hidden xl:block bottom-0 right-0"
-        src={Ornament}
-        alt="Ornament"
-      />
-      <Image
-        className="absolute hidden xl:block top-0 left-0 rotate-180"
-        src={Ornament}
-        alt="Ornament"
-      />
-    </section>
   );
 };
+
+export default ContactUsPage;

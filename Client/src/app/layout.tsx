@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import "../../globals.css";
+import "../../globals.css"
 import Providers from "./providers";
 import { Toaster } from "@/components/ui/toaster";
 import AuthProvider from "./context/AuthProvider";
@@ -8,9 +8,9 @@ import AuthProvider from "./context/AuthProvider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Websitename | My website",
-  description: "Lorep ipsum dolor.",
-  keywords: "Lorep ipsum dolor, Nice platform",
+  title: "CHS | Community Host & Support",
+  description: "A safe, engaging, and supportive digital academy for young people in supported living",
+  keywords: "academy, learning, supportive, platform",
 };
 // pixel code
 export default function RootLayout({
