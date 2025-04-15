@@ -48,6 +48,9 @@ export const getAllCourses = async (req, res) => {
     const courses = await prisma.course.findMany({
       where: filters,
       orderBy: { createdAt: 'desc' },
+      include: {
+        chapters: true
+      }
     });
 
     if (!courses?.length) {
@@ -415,25 +418,47 @@ export const deleteCourse = async (req, res) => {
   const { courseId } = req.params;
 
   try {
+    // First verify the course exists
     const course = await prisma.course.findUnique({
       where: { id: parseInt(courseId) },
     });
 
     if (!course) {
-      return res.status(400).json({ message: 'Course not found' });
+      return res.status(404).json({ message: 'Course not found' });
     }
 
-    await prisma.chapter.deleteMany({
-      where: { courseId: parseInt(courseId) },
+    await prisma.$transaction(async (tx) => {
+
+      await tx.question.deleteMany({
+        where: {
+          chapter: {
+            courseId: parseInt(courseId)
+          }
+        }
+      });
+
+      await tx.uploadedFile.deleteMany({
+        where: {
+          chapter: {
+            courseId: parseInt(courseId)
+          }
+        }
+      });
+
+      await tx.chapter.deleteMany({
+        where: { courseId: parseInt(courseId) }
+      });
+
+      await tx.course.delete({
+        where: { id: parseInt(courseId) }
+      });
     });
 
-    await prisma.course.delete({
-      where: { id: parseInt(courseId) },
-    });
-
-    res.json('Course successfully deleted');
+    return res.status(200).json({ message: 'Course successfully deleted' });
   } catch (error) {
     console.error('Delete course error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    return res.status(500).json({
+      message: 'Failed to delete course',
+    });
   }
 };

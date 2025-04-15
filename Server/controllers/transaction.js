@@ -50,7 +50,7 @@ export const getAllTransaction = async (_req, res) => {
   try {
     const transactions = await prisma.transaction.findMany({
       orderBy: { createdAt: 'desc' },
-      include: { user: { select: { username: true, userCourses: true } } },
+      include: { user: { select: { username: true, userCourses: true, course: true } } },
     });
 
     if (!transactions?.length) {
@@ -429,9 +429,49 @@ export const updateTransaction = async (req, res) => {
 
     // Update user
     if (Object.keys(updatedUserData).length) {
-      await prisma.user.update({
-        where: { id: currentUser.id },
-        data: updatedUserData,
+      await prisma.$transaction(async (tx) => {
+        // Handle course assignments
+        for (const uc of updatedUserData.userCourses) {
+          // Create or update UserCourse
+          const userCourse = await tx.userCourse.upsert({
+            where: {
+              userId_courseId: {
+                userId: currentUser.id,
+                courseId: uc.courseId
+              }
+            },
+            update: {
+              duration: uc.duration,
+              commission: uc.commission
+            },
+            create: {
+              userId: currentUser.id,
+              courseId: uc.courseId,
+              duration: uc.duration,
+              commission: uc.commission
+            }
+          });
+
+          // Handle chapter progress
+          for (const chapter of uc.chapters) {
+            await tx.userChapter.upsert({
+              where: {
+                userId_chapterId: {
+                  userId: currentUser.id,
+                  chapterId: chapter.chapterId
+                }
+              },
+              update: {
+                completed: chapter.completed
+              },
+              create: {
+                userId: currentUser.id,
+                chapterId: chapter.chapterId,
+                completed: chapter.completed
+              }
+            });
+          }
+        }
       });
     }
 

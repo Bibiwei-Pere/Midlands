@@ -2,7 +2,7 @@ import { createNotification } from "./notification.js";
 
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient(); s
+const prisma = new PrismaClient();
 
 export const getAllBookSession = async (_req, res) => {
   try {
@@ -34,7 +34,7 @@ export const getAllBookSession = async (_req, res) => {
 
 export const getBookSession = async (req, res) => {
   const { bookSessionId } = req.params;
-  const bookSession = await prisma.bookSession.findUnique({ where: { bookSessionId } });
+  const bookSession = await prisma.bookSession.findUnique({ where: { id: parseInt(bookSessionId) } });
   if (!bookSession) return res.status(400).json({ message: "No bookSession found" });
   res.json(bookSession);
 };
@@ -79,13 +79,16 @@ export const updateBookSession = async (req, res) => {
   }
 
   try {
+
     const bookSession = await prisma.bookSession.findUnique({
       where: { id: parseInt(bookSessionId) },
     });
 
+
     if (!bookSession) {
       return res.status(400).json({ message: 'Book Session not found!' });
     }
+
 
     if (bookSession.status === 'Successful' || bookSession.status === 'Failed') {
       return res.status(400).json({ message: `You've already ${bookSession.status} this transaction` });
@@ -99,8 +102,10 @@ export const updateBookSession = async (req, res) => {
       return res.status(400).json({ message: 'Current user not found' });
     }
 
-    const transaction = await prisma.transaction.findUnique({
-      where: { bookSessionId: parseInt(bookSession.id || '0') },
+    console.log(bookSession);
+
+    const transaction = await prisma.transaction.findFirst({
+      where: { bookingSessionId: parseInt(bookSession.id || 0) },
     });
 
     if (!transaction) {

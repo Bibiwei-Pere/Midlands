@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 
 export const getStatistics = async (_req, res) => {
   try {
-    const statistics = await prisma.statistics.findFirst();
+    const statistics = await prisma.statistics.findMany();
 
     if (!statistics) {
       return res.status(200).json([]);

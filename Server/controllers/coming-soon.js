@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 
 export const getAllComings = async (_req, res) => {
   try {
-    const comings = await prisma.comingSoon.findMany();
+    const comings = await prisma.coming.findMany();
 
     if (!comings?.length) {
       return res.status(200).json([]);

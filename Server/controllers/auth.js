@@ -24,7 +24,10 @@ export const mailToSupport = async (req, res) => {
   try {
     const emailData1 = {
       to: [{ email }],
-      sender: { name: BREVO_API_NAME, email: "noreply@mywebsite.com" },
+      sender: {
+        name: "Lassod" || 'MyWebsite',
+        email: "olanitori00@gmail.com",
+      },
       subject: title,
       htmlContent: `
         <p>Hello <b>${fullName}</b>,</p>
@@ -37,7 +40,10 @@ export const mailToSupport = async (req, res) => {
 
     const emailData2 = {
       to: [{ email: "support@mywebsite.com" }],
-      sender: { name: BREVO_API_NAME, email: "noreply@mywebsite.com" },
+      sender: {
+        name: "Lassod" || 'MyWebsite',
+        email: "olanitori00@gmail.com",
+      },
       subject: title,
       htmlContent: `
         <p>From <b>${fullName}</b>,</p>
@@ -146,8 +152,8 @@ export const signup = async (req, res) => {
     const emailData = {
       to: [{ email }],
       sender: {
-        name: process.env.BREVO_API_NAME || 'MyWebsite',
-        email: 'noreply@mywebsite.com',
+        name: "Lassod" || 'MyWebsite',
+        email: "olanitori00@gmail.com",
       },
       subject: 'Your Verification OTP Code',
       htmlContent: `
@@ -169,8 +175,6 @@ export const signup = async (req, res) => {
   } catch (error) {
     console.error('Signup error:', error);
     return res.status(500).json({ message: 'Internal server error' });
-  } finally {
-    await prisma.$disconnect();
   }
 };
 
@@ -268,10 +272,12 @@ export const signin = async (req, res) => {
 const generateAccessToken = (user) => {
   console.log("thirdfffffffff");
 
+  console.log(user);
+
   return jwt.sign(
     {
       UserInfo: {
-        id: user._id,
+        id: user.id,
         email: user.email,
         role: user.role,
       },
@@ -282,7 +288,8 @@ const generateAccessToken = (user) => {
 };
 
 const generateRefreshToken = (user) => {
-  return jwt.sign({ id: user._id }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: "7d" }); // Refresh token expires in 7 days
+  console.log("refresh", user);
+  return jwt.sign({ id: user.id }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: "7d" }); // Refresh token expires in 7 days
 };
 
 export const refreshToken = async (req, res) => {
@@ -326,12 +333,12 @@ export const resetPassword = async (req, res) => {
 
     // Generate the reset token
     const token = jwt.sign({ id: user._id }, "jwt_secret_key", { expiresIn: "30m" });
-    const resetLink = `${CLIENT_URL}/auth/new-password/${user._id}/${token}`;
+    const resetLink = `${CLIENT_URL}/auth/new-password/${user.id}/${token}`;
 
-    // Set up email data
+    // Set up email datass
     const emailData = {
       to: [{ email: user.email }],
-      sender: { name: BREVO_API_NAME, email: "noreply@mywebsite.com" },
+      sender: { name: "Lassod", email: "olanitori00@gmail.com" },
       subject: "Reset Your Password",
       htmlContent: `
         <body marginheight="0" topmargin="0" marginwidth="0" style="margin: 0px; background-color: #f2f3f8;" leftmargin="0">
@@ -486,8 +493,8 @@ export const generateOtp = async (req, res) => {
     const emailData = {
       to: [{ email }],
       sender: {
-        name: process.env.BREVO_API_NAME || 'MyWebsite',
-        email: 'noreply@mywebsite.com',
+        name: "Lassod" || 'MyWebsite',
+        email: "olanitori00@gmail.com",
       },
       subject: 'Your Verification OTP Code',
       htmlContent: `
