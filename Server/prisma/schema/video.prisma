@@ -1,0 +1,15 @@
+model Video {
+  id          Int      @id @default(autoincrement()) @map("video")
+  userId      Int      @map("user")
+  user        User     @relation(fields: [userId], references: [id])
+  category    String
+  title       String
+  description String
+  videoUrl    String   @map("video_url")
+  duration    String?
+  views       Int      @default(50)
+  rating      Float    @default(4)
+  isPublic    Boolean  @default(false) @map("is_public")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+}

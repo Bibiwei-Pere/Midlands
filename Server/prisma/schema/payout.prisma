@@ -1,0 +1,16 @@
+
+model Payout {
+  id              Int      @id @default(autoincrement())
+  userId          Int      @map("user")
+  user            User     @relation(fields: [userId], references: [id])
+  username        String?
+  email           String?
+  amount          Float
+  role            String   @default("User")
+  status          String   @default("Pending Approval")
+  bankAccountName String?  @map("bank_account_name")
+  bankAccountNumber String? @map("bank_account_number")
+  bankName        String?  @map("bank_name")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+}

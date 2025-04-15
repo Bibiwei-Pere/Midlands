@@ -1,0 +1,56 @@
+model Course {
+  id                    Int           @id @default(autoincrement())
+  userId                Int           @map("user")
+  user                  User          @relation(fields: [userId], references: [id])
+  selectedCourseIds     Json          @default("[]") @map("selected_course_ids")
+  title                 String
+  featuredImgName       String        @default("") @map("featured_img_name")
+  featuredImgFileId     String        @default("") @map("featured_img_file_id")
+  featuredImgUrl        String        @default("") @map("featured_img_url")
+  featuredVideoName     String        @default("") @map("featured_video_name")
+  featuredVideoFileId   String?       @map("featured_video_file_id")
+  featuredVideoUrl      String        @default("") @map("featured_video_url")
+  miniDescription       String        @default("") @map("mini_description")
+  description           String        @default("")
+  certificate           String        @default("")
+  price                 Float         @default(0)
+  category              String        @default("")
+  status                String        @default("Archived")
+  name                  String        @default("")
+  commission            Float         @default(0)
+  instructorName        String?       @map("instructor_name")
+  instructorTitle       String?       @map("instructor_title")
+  instructorDescription String?       @map("instructor_description")
+  chapters              Chapter[]
+  reviews               Review[]
+  quizzes               QuizScore[]
+  transaction           Transaction[]
+  userCourses           UserCourse[]
+  durationHours         Int           @default(1) @map("duration_hours")
+  ratingsTotal          Int           @default(0) @map("ratings_total")
+  ratingsAverage        Float         @default(1) @map("ratings_average")
+  ratingsOne            Int           @default(0) @map("ratings_one")
+  ratingsTwo            Int           @default(0) @map("ratings_two")
+  ratingsThree          Int           @default(0) @map("ratings_three")
+  ratingsFour           Int           @default(0) @map("ratings_four")
+  ratingsFive           Int           @default(0) @map("ratings_five")
+  resourcesCount        Int           @default(0) @map("resources_count")
+  createdAt             DateTime      @default(now()) @map("created_at")
+  updatedAt             DateTime      @updatedAt @map("updated_at")
+}
+
+model UserCourse {
+  id         Int         @id @default(autoincrement())
+  userId     Int
+  user       User        @relation(fields: [userId], references: [id])
+  courseId   Int
+  course     Course      @relation(fields: [courseId], references: [id])
+  duration   Int         @default(0)
+  commission Float       @default(0)
+  quizzes    QuizScore[]
+  chapters   Chapter[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@unique([userId, courseId])
+}

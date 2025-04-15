@@ -1,0 +1,15 @@
+model UploadedFile {
+  id          Int      @id @default(autoincrement())
+  chapterId   Int      @map("chapter_id")
+  chapter     Chapter  @relation(fields: [chapterId], references: [id])
+  name        String   @default("")
+  size        String   @default("")
+  type        String   @default("")
+  uniqueName  String   @default("") @map("unique_name")
+  url         String   @default("")
+  date        String   @default("")
+  title       String   @default("")
+  description String   @default("")
+  duration    String?
+  fileId      String?  @map("file_id")
+}

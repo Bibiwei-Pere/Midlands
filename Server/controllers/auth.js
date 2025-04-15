@@ -2,6 +2,9 @@ import User from "../models/User.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import SibApiV3Sdk from "sib-api-v3-sdk";
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 const { CLIENT_URL, BREVO_API_NAME, BREVO_API_KEY } = process.env;
 
@@ -21,7 +24,10 @@ export const mailToSupport = async (req, res) => {
   try {
     const emailData1 = {
       to: [{ email }],
-      sender: { name: BREVO_API_NAME, email: "noreply@mywebsite.com" },
+      sender: {
+        name: "Lassod" || 'MyWebsite',
+        email: "olanitori00@gmail.com",
+      },
       subject: title,
       htmlContent: `
         <p>Hello <b>${fullName}</b>,</p>
@@ -34,7 +40,10 @@ export const mailToSupport = async (req, res) => {
 
     const emailData2 = {
       to: [{ email: "support@mywebsite.com" }],
-      sender: { name: BREVO_API_NAME, email: "noreply@mywebsite.com" },
+      sender: {
+        name: "Lassod" || 'MyWebsite',
+        email: "olanitori00@gmail.com",
+      },
       subject: title,
       htmlContent: `
         <p>From <b>${fullName}</b>,</p>
@@ -63,60 +72,90 @@ export const signup = async (req, res) => {
 
   console.log(req.body);
   console.log(req.params);
-  if (!password) return res.status(400).json({ message: "Password field is required" });
-  if (!username) return res.status(400).json({ message: "Username field is required" });
-  if (!email) return res.status(400).json({ message: "Email field is required" });
-  if (!phone) return res.status(400).json({ message: "Phone field is required" });
-  if (password !== confirmPassword) return res.status(400).json({ message: "Passwords do not match" });
 
-  // Check for duplicates
-  const duplicateUsername = await User.findOne({ username }).collation({ locale: "en", strength: 2 });
-  if (duplicateUsername) return res.status(400).json({ message: "Duplicate username" });
-
-  const duplicateEmail = await User.findOne({ email }).collation({ locale: "en", strength: 2 });
-  if (duplicateEmail) return res.status(400).json({ message: "Email address already exists!" });
+  if (!password) {
+    return res.status(400).json({ message: 'Password field is required' });
+  }
+  if (!username) {
+    return res.status(400).json({ message: 'Username field is required' });
+  }
+  if (!email) {
+    return res.status(400).json({ message: 'Email field is required' });
+  }
+  if (!phone) {
+    return res.status(400).json({ message: 'Phone field is required' });
+  }
+  if (password !== confirmPassword) {
+    return res.status(400).json({ message: 'Passwords do not match' });
+  }
 
   try {
-    // Hash the password
+    const duplicateUsername = await prisma.user.findFirst({
+      where: {
+        username: { equals: username, mode: 'insensitive' },
+      },
+    });
+    if (duplicateUsername) {
+      return res.status(400).json({ message: 'Duplicate username' });
+    }
+
+    const duplicateEmail = await prisma.user.findFirst({
+      where: {
+        email: { equals: email, mode: 'insensitive' },
+      },
+    });
+    if (duplicateEmail) {
+      return res.status(400).json({ message: 'Email address already exists!' });
+    }
+
     const hashedPwd = await bcrypt.hash(password, 10);
-
-    // Generate OTP and expiration
     const verificationCode = Math.floor(100000 + Math.random() * 900000);
-    const otpExpiry = Date.now() + 60 * 60 * 1000; // Expires in 1 hour
+    const otpExpiry = new Date(Date.now() + 60 * 60 * 1000);
 
-    // Create new user object with OTP and OTP expiry
-    const user = new User({
+    let userData = {
       username,
       email,
       password: hashedPwd,
+      phone,
       verificationCode,
       otpExpiry,
-      phone,
-    });
+      role: 'User',
+    };
 
     if (refUsername) {
-      updatedRefUsername = refUsername.replace(/-/g, " ");
-      const refUser = await User.findOne({ username: updatedRefUsername }).exec(); // Updated to findOne
+      const updatedRefUsername = refUsername.replace(/-/g, ' ');
+      const refUser = await prisma.user.findFirst({
+        where: { username: updatedRefUsername },
+      });
 
       if (refUser) {
-        user.affiliate.referee.userId = refUser._id;
-        user.affiliate.referee.date = new Date();
+        userData.affiliateRefereeUserId = refUser.id
+        userData.affiliateRefereeDate = new Date();
 
-        refUser.affiliate.count += 1;
-        await refUser.save();
+        await prisma.user.update({
+          where: { id: refUser.id },
+          data: {
+            affiliateCount: { increment: 1 },
+          },
+        });
       }
     }
 
-    console.log(user);
+    console.log(userData);
 
-    await user.save();
+    const user = await prisma.user.create({
+      data: userData,
+    });
 
-    console.log("verificationCode", verificationCode);
-    // Send OTP email
+    console.log('verificationCode', verificationCode);
+
     const emailData = {
       to: [{ email }],
-      sender: { name: BREVO_API_NAME, email: "noreply@mywebsite.com" },
-      subject: "Your Verification OTP Code",
+      sender: {
+        name: "Lassod" || 'MyWebsite',
+        email: "olanitori00@gmail.com",
+      },
+      subject: 'Your Verification OTP Code',
       htmlContent: `
         <p>Hello <b>${username}</b>,</p>
         <p>Thank you for signing up. Use the OTP below to verify your account:</p>
@@ -134,86 +173,111 @@ export const signup = async (req, res) => {
       message: `Registration successful! Check your email for the OTP to verify your account.`,
     });
   } catch (error) {
-    console.error("Signup error:", error);
-    return res.status(500).json({ message: "Internal server error" });
+    console.error('Signup error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
   }
 };
+
 
 export const signin = async (req, res) => {
   const { email, password, username, isGoogleSignIn } = req.body;
   console.log(req.body);
 
-  if (!isGoogleSignIn) if (!email || !password) return res.status(400).json({ message: "All fields are required" });
+  if (!isGoogleSignIn && (!email || !password)) {
+    return res.status(400).json({ message: 'All fields are required' });
+  }
 
   try {
-    // CHECK IF THE USER EXISTS
     if (isGoogleSignIn) {
-      const socialUser = await User.findOne({ email }).exec();
-      if (!socialUser) {
-        const user = new User({
-          username,
-          email,
-          isVerified: true,
-        });
-        console.log(user);
-
-        await user.save();
-      } else {
-        socialUser.isVerified = true;
-        await socialUser.save();
-      }
-      // console.log(socialUser);
-    }
-
-    const foundUser = await User.findOne({ email }).exec();
-    if (!foundUser) return res.status(400).json({ message: "Invalid Email address" });
-    console.log("first");
-
-    // CHECK IF THE PASSWORD IS CORRECT
-    if (!isGoogleSignIn) {
-      const isPasswordValid = await bcrypt.compare(password, foundUser.password);
-      if (!isPasswordValid) return res.status(400).json({ message: "Invalid Password" });
-    }
-    console.log("second");
-
-    if (!foundUser.isVerified)
-      return res.status(401).json({
-        email,
-        password,
-        message: "Your account is not verified yet, verify now",
+      const socialUser = await prisma.user.findUnique({
+        where: { email },
       });
 
-    console.log("third");
+      if (!socialUser) {
+        if (!username) {
+          return res.status(400).json({ message: 'Username is required for Google Sign-In' });
+        }
+        await prisma.user.create({
+          data: {
+            username,
+            email,
+            isVerified: true,
+          },
+        });
+      } else {
+        await prisma.user.update({
+          where: { email },
+          data: { isVerified: true },
+        });
+      }
+    }
 
-    // Update the lastLogin field
-    foundUser.lastLogin = new Date();
-    foundUser.isActive = true; // Mark the foundUser as active upon login
-    await foundUser.save();
-    const role = foundUser.role;
+    const foundUser = await prisma.user.findUnique({
+      where: { email },
+    });
+    if (!foundUser) {
+      return res.status(400).json({ message: 'Invalid Email address' });
+    }
+    console.log('first');
 
-    // Generate tokens
+    if (!isGoogleSignIn) {
+      const isPasswordValid = await bcrypt.compare(password, foundUser.password || '');
+      if (!isPasswordValid) {
+        return res.status(400).json({ message: 'Invalid Password' });
+      }
+    }
+    console.log('second');
+
+    if (!foundUser.isVerified) {
+      return res.status(401).json({
+        email,
+        message: 'Your account is not verified yet, verify now',
+      });
+    }
+    console.log('third');
+
+    await prisma.user.update({
+      where: { email },
+      data: {
+        lastLogin: new Date(),
+        isActive: true,
+      },
+    });
+
     const accessToken = generateAccessToken(foundUser);
     const refreshToken = generateRefreshToken(foundUser);
 
-    // Save the refresh token in the user document
-    foundUser.refreshToken = refreshToken;
-    await foundUser.save();
+    await prisma.user.update({
+      where: { email },
+      data: { refreshToken },
+    });
 
     console.log(foundUser);
-    res.status(200).json({ email, accessToken, refreshToken, role, id: foundUser._id, password });
+
+    res.status(200).json({
+      email,
+      accessToken,
+      refreshToken,
+      role: foundUser.role,
+      id: foundUser.id,
+    });
   } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Failed to Signin!" });
+    console.error('Signin error:', err);
+    res.status(500).json({ message: 'Failed to Signin!' });
+  } finally {
+    await prisma.$disconnect();
   }
 };
 
 const generateAccessToken = (user) => {
   console.log("thirdfffffffff");
 
+  console.log(user);
+
   return jwt.sign(
     {
       UserInfo: {
-        id: user._id,
+        id: user.id,
         email: user.email,
         role: user.role,
       },
@@ -224,7 +288,8 @@ const generateAccessToken = (user) => {
 };
 
 const generateRefreshToken = (user) => {
-  return jwt.sign({ id: user._id }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: "7d" }); // Refresh token expires in 7 days
+  console.log("refresh", user);
+  return jwt.sign({ id: user.id }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: "7d" }); // Refresh token expires in 7 days
 };
 
 export const refreshToken = async (req, res) => {
@@ -238,7 +303,9 @@ export const refreshToken = async (req, res) => {
   try {
     // Verify the refresh token
     const decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
-    const user = await User.findById(decoded.id);
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id }
+    });
 
     if (!user || user.refreshToken !== token) {
       return res.status(403).json({ message: "Invalid refresh token" });
@@ -261,17 +328,17 @@ export const resetPassword = async (req, res) => {
 
   try {
     // Find the user by email
-    const user = await User.findOne({ email });
+    const user = await prisma.user.findUnique({ where: { email: email } });
     if (!user) return res.status(400).json({ message: "Email not found!" });
 
     // Generate the reset token
     const token = jwt.sign({ id: user._id }, "jwt_secret_key", { expiresIn: "30m" });
-    const resetLink = `${CLIENT_URL}/auth/new-password/${user._id}/${token}`;
+    const resetLink = `${CLIENT_URL}/auth/new-password/${user.id}/${token}`;
 
-    // Set up email data
+    // Set up email datass
     const emailData = {
       to: [{ email: user.email }],
-      sender: { name: BREVO_API_NAME, email: "noreply@mywebsite.com" },
+      sender: { name: "Lassod", email: "olanitori00@gmail.com" },
       subject: "Reset Your Password",
       htmlContent: `
         <body marginheight="0" topmargin="0" marginwidth="0" style="margin: 0px; background-color: #f2f3f8;" leftmargin="0">
@@ -319,98 +386,155 @@ export const resetPassword = async (req, res) => {
   }
 };
 
-export const newPassword = (req, res) => {
+
+
+export const newPassword = async (req, res) => {
   const { id, token } = req.params;
   const { password, confirmPassword } = req.body;
   console.log(password);
   console.log(confirmPassword);
-  if (password !== confirmPassword) return res.status(400).json({ message: "Passwords do not match" });
 
-  console.log("Reset Link clicked");
-  jwt.verify(token, "jwt_secret_key", async (err) => {
-    if (err) return res.json({ Status: "Error with token" });
-    else {
-      const hashedPwd = await bcrypt.hash(password, 10);
-      User.findByIdAndUpdate({ _id: id }, { password: hashedPwd })
-        .then((u) => res.status(200).json({ message: "Success!" }))
-        .catch((err) => res.status(400).json({ message: "Error!" }));
-    }
-  });
+  if (password !== confirmPassword) {
+    return res.status(400).json({ message: 'Passwords do not match' });
+  }
+
+  console.log('Reset Link clicked');
+
+  try {
+    jwt.verify(token, process.env.JWT_SECRET || 'jwt_secret_key', async (err, decoded) => {
+      if (err) {
+        return res.status(400).json({ message: 'Error with token' });
+      }
+
+      try {
+        const hashedPwd = await bcrypt.hash(password, 10);
+
+        const updatedUser = await prisma.user.update({
+          where: { id: parseInt(id) },
+          data: { password: hashedPwd },
+        });
+
+        if (!updatedUser) {
+          return res.status(400).json({ message: 'User not found' });
+        }
+
+        res.status(200).json({ message: 'Success!' });
+      } catch (updateError) {
+        console.error('Update error:', updateError);
+        res.status(400).json({ message: 'Error updating password' });
+      }
+    });
+  } catch (error) {
+    console.error('New password error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 };
 
 export const logout = async (req, res) => {
-  const { token } = req.body; // Refresh token from request body
+  const { token } = req.body;
 
-  if (!token) return res.status(400).json({ message: "Token required" });
+  if (!token) {
+    return res.status(400).json({ message: 'Token required' });
+  }
 
   try {
     const decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
-    const user = await User.findById(decoded.id);
 
-    if (!user) return res.status(403).json({ message: "User not found" });
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+    });
 
-    // Remove the refresh token from the user's refreshTokens array
-    user.refreshToken = null;
-    await user.save();
+    if (!user) {
+      return res.status(403).json({ message: 'User not found' });
+    }
 
-    res.status(200).json({ message: "Logged out successfully" });
+    await prisma.user.update({
+      where: { id: decoded.id },
+      data: { refreshToken: null },
+    });
+
+    res.status(200).json({ message: 'Logged out successfully' });
   } catch (error) {
-    console.error("Logout error:", error);
-    res.status(403).json({ message: "Failed to log out" });
+    console.error('Logout error:', error);
+    res.status(403).json({ message: 'Failed to log out' });
   }
 };
 
 // Generate 6-digit OTP and set expiration time
+
+
 export const generateOtp = async (req, res) => {
   const { email, password } = req.body;
 
-  // Check if user exists and is unverified
-  const user = await User.findOne({ email });
-  if (!user) return res.status(400).json({ message: "User not found" });
-  if (user.isVerified) return res.status(400).json({ message: "Account already verified" });
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
 
-  // Generate OTP and set expiration
-  const verificationCode = Math.floor(100000 + Math.random() * 900000);
-  const otpExpiry = Date.now() + 60 * 60 * 1000; // Expires in 1 hour
-  console.log(verificationCode);
-  user.verificationCode = verificationCode;
-  user.otpExpiry = otpExpiry;
-  await user.save();
+    if (!user) {
+      return res.status(400).json({ message: 'User not found' });
+    }
+    if (user.isVerified) {
+      return res.status(400).json({ message: 'Account already verified' });
+    }
 
-  const emailData = {
-    to: [{ email }],
-    sender: { name: BREVO_API_NAME, email: "noreply@mywebsite.com" },
-    subject: "Your Verification OTP Code",
-    htmlContent: `
+    const verificationCode = Math.floor(100000 + Math.random() * 900000);
+    const otpExpiry = new Date(Date.now() + 60 * 60 * 1000);
+    console.log(verificationCode);
+
+    await prisma.user.update({
+      where: { email },
+      data: {
+        verificationCode,
+        otpExpiry,
+      },
+    });
+
+    const emailData = {
+      to: [{ email }],
+      sender: {
+        name: "Lassod" || 'MyWebsite',
+        email: "olanitori00@gmail.com",
+      },
+      subject: 'Your Verification OTP Code',
+      htmlContent: `
         <p>Hello <b>${user.username}</b>,</p>
         <p>Thank you for signing up. Use the OTP below to verify your account:</p>
         <h2>${verificationCode}</h2>
         <p>This OTP is valid for 1 hour.</p>
         <p>If you did not sign up, please ignore this email.</p>
       `,
-  };
+    };
 
-  await transactionalEmailsApi.sendTransacEmail(emailData);
+    await transactionalEmailsApi.sendTransacEmail(emailData);
 
-  res.status(200).json({
-    email,
-    password,
-    message: "OTP sent successfully",
-  });
+    res.status(200).json({
+      email,
+      message: 'OTP sent successfully',
+    });
+  } catch (error) {
+    console.error('Generate OTP error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 };
 
 export const verifyEmail = async (req, res) => {
   const { email, password, verificationCode } = req.body;
   console.log(req.body);
   try {
-    const user = await User.findOne({ email, verificationCode: parseInt(verificationCode) });
+    const user = await prisma.user.findUnique({ where: { email: email, verificationCode: parseInt(verificationCode) } });
     if (!user || user.otpExpiry < Date.now()) return res.status(400).json({ message: "Invalid or expired OTP" });
     console.log(user);
 
-    user.isVerified = true;
+
     // user.verificationCode = null;
     // user.otpExpiry = null;
-    await user.save();
+    await prisma.user.update({
+      where: { email },
+      data: {
+        isVerified: true
+      },
+    });
 
     res.status(200).json({ email, password, message: "Email verified successfully!" });
   } catch (error) {
@@ -425,12 +549,17 @@ export const socialLogin = async (req, res) => {
   if (!email) return res.status(400).json({ message: "Email field is required" });
 
   try {
-    const user = await User.findOne({ email });
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
     if (!user) return res.status(400).json({ message: "User not found" });
     console.log(user);
 
-    user.password = await bcrypt.hash(password, 10);
-    await user.save();
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await prisma.user.update({
+      where: { email },
+      data: { password: hashedPassword },
+    });
 
     if (user) await signin({ body: { email, password } }, res);
 

@@ -1,0 +1,8 @@
+model Question {
+  id          Int      @id @default(autoincrement())
+  chapterId   Int      @map("chapter_id")
+  chapter     Chapter  @relation(fields: [chapterId], references: [id])
+  question    String   @default("")
+  options     String[] @default([])
+  answer      Int      @default(0)
+}

@@ -1,84 +1,135 @@
-import User from "../models/User.js";
-import Course from "../models/Course.js";
+// controllers/courseController.js
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export const getAllCoursesAdmin = async (_req, res) => {
-  const courses = await Course.find().sort({ createdAt: -1 }).lean(); // Assuming 'createdAt' is the date field
+  try {
+    const courses = await prisma.course.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: { user: { select: { username: true } } },
+    });
 
-  if (!courses?.length) return res.status(200).json([]);
+    if (!courses?.length) {
+      return res.status(200).json([]);
+    }
 
-  // Add username to each course before sending the response
-  const cousreWithUser = await Promise.all(
-    courses.map(async (course) => {
-      const user = await User.findById(course.user).lean().exec();
-      return { ...course, username: user.username };
-    })
-  );
+    const coursesWithUser = courses.map((course) => ({
+      ...course,
+      username: course.user?.username || 'Unknown',
+    }));
 
-  res.json(cousreWithUser);
+    res.json(coursesWithUser);
+  } catch (error) {
+    console.error('Get all courses admin error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 };
 
 export const getAllCourses = async (req, res) => {
   try {
     const { category, searchQuery, durationHours, minRatings, maxPrice } = req.query;
-
     console.log(req.query);
-    // Build filter object based on provided query parameters
+
     const filters = {
-      status: "Published",
+      status: 'Published',
     };
 
     if (category) filters.category = category;
-    if (durationHours) filters.durationHours = { $lte: parseInt(durationHours) };
-    if (minRatings) filters["ratings.average"] = { $gte: parseInt(minRatings) };
-    if (maxPrice) filters.price = { $lte: parseInt(maxPrice) };
+    if (durationHours) filters.durationHours = { lte: parseInt(durationHours) };
+    if (minRatings) filters.ratingsAverage = { gte: parseFloat(minRatings) };
+    if (maxPrice) filters.price = { lte: parseFloat(maxPrice) };
     if (searchQuery) {
-      filters.title = { $regex: searchQuery, $options: "i" }; // 'i' for case-insensitive search
+      filters.title = { contains: searchQuery, mode: 'insensitive' };
     }
-    console.log("Filters", filters);
-    const courses = await Course.find(filters).sort({ createdAt: -1 }).lean();
-    // console.log(courses);
-    if (!courses?.length) return res.status(200).json([]);
+
+    console.log('Filters', filters);
+
+    const courses = await prisma.course.findMany({
+      where: filters,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        chapters: true
+      }
+    });
+
+    if (!courses?.length) {
+      return res.status(200).json([]);
+    }
 
     res.json(courses);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error" });
+    console.error('Get all courses error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
 export const getAllCoursesLanding = async (req, res) => {
   try {
-    const filters = {
-      status: "Published",
-    };
+    const filters = { status: 'Published' };
+    console.log('Filters', filters);
 
-    console.log("Filters", filters);
-    const courses = await Course.find(filters).lean();
-    // console.log(courses);
-    if (!courses?.length) return res.status(200).json([]);
+    const courses = await prisma.course.findMany({
+      where: filters,
+    });
+
+    if (!courses?.length) {
+      return res.status(200).json([]);
+    }
 
     res.json(courses);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error" });
+    console.error('Get all courses landing error:', error);
+    res.status(500).json({ message: 'Server error' });
+  } finally {
+    await prisma.$disconnect();
   }
 };
 
 export const getUserCourses = async (req, res) => {
   const { userId } = req.params;
-  const courses = await Course.find({ user: userId }).sort({ createdAt: -1 }).lean(); // Assuming 'createdAt' is the date field
 
-  if (!courses?.length) return res.status(400).json({ message: "No course found" });
-  res.json(courses);
+  try {
+    const courses = await prisma.course.findMany({
+      where: { userId: parseInt(userId) },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!courses?.length) {
+      return res.status(200).json([]);
+    }
+
+    res.json(courses);
+  } catch (error) {
+    console.error('Get user courses error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  } finally {
+    await prisma.$disconnect();
+  }
 };
 
 export const getCourse = async (req, res) => {
   const { courseId } = req.params;
 
-  const course = await Course.findById(courseId).lean();
-  if (!course) return res.status(400).json({ message: "No course found" });
-  res.json(course);
+  try {
+    const course = await prisma.course.findUnique({
+      where: { id: parseInt(courseId) },
+      include: { chapters: true },
+    });
+
+    if (!course) {
+      return res.status(400).json({ message: 'No course found' });
+    }
+
+    res.json(course);
+  } catch (error) {
+    console.error('Get course error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  } finally {
+    await prisma.$disconnect();
+  }
 };
+
 
 export const createCourse = async (req, res) => {
   const {
@@ -100,36 +151,91 @@ export const createCourse = async (req, res) => {
     selectedCourseIds,
   } = req.body;
 
-  if (!title) return res.status(400).json({ message: "Title field is required" });
+  if (!title) {
+    return res.status(400).json({ message: 'Title field is required' });
+  }
 
-  const user = await User.findById(userId).exec();
-  if (!user) return res.status(400).json({ message: "User not found" });
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(userId) },
+    });
 
-  const course = await Course.create({
-    user: userId,
-    category,
-    title,
-    name,
-    featuredImg,
-    featuredVideo,
-    description,
-    certificate,
-    price: parseInt(price),
-    instructor,
-    chapters,
-    commission,
-    status,
-    miniDescription,
-    selectedCourseIds,
-    durationHours: parseInt(durationHours),
-  });
+    if (!user) {
+      return res.status(400).json({ message: 'User not found' });
+    }
 
-  if (course) {
-    await course.save();
+    const course = await prisma.course.create({
+      data: {
+        userId: parseInt(userId),
+        category: category || '',
+        title,
+        name: name || '',
+        featuredImgName: featuredImg?.name || '',
+        featuredImgFileId: featuredImg?.fileId || '',
+        featuredImgUrl: featuredImg?.url || '',
+        featuredVideoName: featuredVideo?.name || '',
+        featuredVideoFileId: featuredVideo?.fileId || null,
+        featuredVideoUrl: featuredVideo?.url || '',
+        description: description || '',
+        certificate: certificate || '',
+        price: price ? parseFloat(price) : 0,
+        instructorName: instructor?.name || null,
+        instructorTitle: instructor?.title || null,
+        instructorDescription: instructor?.description || null,
+        commission: commission ? parseFloat(commission) : 0,
+        status: status || 'Archived',
+        miniDescription: miniDescription || '',
+        durationHours: durationHours ? parseInt(durationHours) : 1,
+        selectedCourseIds: selectedCourseIds || [],
+        chapters: chapters
+          ? {
+            create: chapters.map((chapter) => ({
+              title: chapter.title || '',
+              subtitle: chapter.subtitle || '',
+              description: chapter.description || '',
+              skills: chapter.skills || '',
+              quizTitle: chapter.quizTitle || '',
+              quizDescription: chapter.quizDescription || '',
+              completed: chapter.completed || false,
+              uploadedFiles: chapter.uploadedFiles
+                ? {
+                  create: chapter.uploadedFiles.map((file) => ({
+                    name: file.name || '',
+                    size: file.size || '',
+                    type: file.type || '',
+                    uniqueName: file.uniqueName || '',
+                    url: file.url || '',
+                    date: file.date || '',
+                    title: file.title || '',
+                    description: file.description || '',
+                    duration: file.duration || null,
+                    fileId: file.fileId || null,
+                  })),
+                }
+                : undefined,
+              questions: chapter.questions
+                ? {
+                  create: chapter.questions.map((question) => ({
+                    question: question.question || '',
+                    options: question.options || [],
+                    answer: question.answer !== undefined ? parseInt(question.answer) : 0,
+                  })),
+                }
+                : undefined,
+            })),
+          }
+          : undefined,
+      },
+    });
 
-    return res.status(200).json({ message: "New course created successfully" });
-  } else {
-    return res.status(400).json({ message: "Invalid course data received" });
+    if (course) {
+      return res.status(200).json({ message: 'New course created successfully' });
+    } else {
+      return res.status(400).json({ message: 'Invalid course data received' });
+    }
+  } catch (error) {
+    console.error('Create course error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
   }
 };
 
@@ -155,73 +261,204 @@ export const updateCourse = async (req, res) => {
   } = req.body;
   console.log(req.body);
 
-  if (!courseId) return res.status(400).json({ message: "ID field is required" });
-  if (!userId) return res.status(400).json({ message: "User field is required" });
-  if (!durationHours) return res.status(400).json({ message: "Duration field is required" });
-
-  const course = await Course.findById(courseId).exec();
-  if (!course) return res.status(400).json({ message: "Course not found!" });
-
-  // Update simple fields
-  if (category) course.category = category;
-  if (title) course.title = title;
-  if (description) course.description = description;
-  if (price) course.price = parseInt(price);
-  if (durationHours) course.durationHours = parseInt(durationHours);
-  if (name) course.name = name;
-  if (featuredImg) course.featuredImg = featuredImg;
-  if (featuredVideo) course.featuredVideo = featuredVideo;
-  if (instructor) course.instructor = instructor;
-  if (commission) course.commission = commission;
-  if (certificate) course.certificate = certificate;
-  if (status) course.status = status;
-  if (miniDescription) course.miniDescription = miniDescription;
-  if (selectedCourseIds) course.selectedCourseIds = selectedCourseIds;
-
-  // Update chapters
-  if (chapters) {
-    // Create a map for existing chapters using their `_id` values as keys
-    const existingChaptersMap = new Map(course.chapters.map((chapter) => [chapter._id.toString(), chapter]));
-
-    // Create an array to hold the updated chapters
-    const updatedChapters = [];
-
-    for (const chapter of chapters) {
-      if (chapter._id) {
-        // If the chapter has an _id, check if it exists in the course
-        const existingChapter = existingChaptersMap.get(chapter._id.toString());
-        if (existingChapter) {
-          // Update fields of the existing chapter
-          existingChapter.details = chapter.details || existingChapter.details;
-          existingChapter.uploadedFiles = chapter.uploadedFiles || existingChapter.uploadedFiles;
-          existingChapter.quiz = chapter.quiz || existingChapter.quiz;
-          updatedChapters.push(existingChapter);
-        } else {
-          // If it doesn't exist, treat it as a new chapter
-          updatedChapters.push(chapter);
-        }
-      } else {
-        // If the chapter has no `_id`, treat it as a new chapter
-        updatedChapters.push(chapter);
-      }
-    }
-
-    // Replace the course's chapters with the updated array
-    course.chapters = updatedChapters;
+  if (!courseId) {
+    return res.status(400).json({ message: 'ID field is required' });
+  }
+  if (!userId) {
+    return res.status(400).json({ message: 'User field is required' });
+  }
+  if (!durationHours) {
+    return res.status(400).json({ message: 'Duration field is required' });
   }
 
-  // Save the updated course
-  await course.save();
+  try {
+    const course = await prisma.course.findUnique({
+      where: { id: parseInt(courseId) },
+    });
 
-  res.json(`Course has been successfully updated`);
+    if (!course) {
+      return res.status(400).json({ message: 'Course not found!' });
+    }
+
+    const updates = {};
+    if (category) updates.category = category;
+    if (title) updates.title = title;
+    if (description) updates.description = description;
+    if (price) updates.price = parseFloat(price);
+    if (durationHours) updates.durationHours = parseInt(durationHours);
+    if (name) updates.name = name;
+    if (featuredImg) {
+      updates.featuredImgName = featuredImg.name || '';
+      updates.featuredImgFileId = featuredImg.fileId || '';
+      updates.featuredImgUrl = featuredImg.url || '';
+    }
+    if (featuredVideo) {
+      updates.featuredVideoName = featuredVideo.name || '';
+      updates.featuredVideoFileId = featuredVideo.fileId || null;
+      updates.featuredVideoUrl = featuredVideo.url || '';
+    }
+    if (instructor) {
+      updates.instructorName = instructor.name || null;
+      updates.instructorTitle = instructor.title || null;
+      updates.instructorDescription = instructor.description || null;
+    }
+    if (commission) updates.commission = parseFloat(commission);
+    if (certificate) updates.certificate = certificate;
+    if (status) updates.status = status;
+    if (miniDescription) updates.miniDescription = miniDescription;
+    if (selectedCourseIds) updates.selectedCourseIds = selectedCourseIds;
+
+    if (chapters) {
+      await prisma.$transaction(async (tx) => {
+        const inputChapterIds = chapters
+          .filter((chapter) => chapter.id)
+          .map((chapter) => parseInt(chapter.id));
+        await tx.chapter.deleteMany({
+          where: {
+            courseId: parseInt(courseId),
+            id: { notIn: inputChapterIds },
+          },
+        });
+
+        for (const chapter of chapters) {
+          const chapterData = {
+            title: chapter.title || '',
+            subtitle: chapter.subtitle || '',
+            description: chapter.description || '',
+            skills: chapter.skills || '',
+            quizTitle: chapter.quizTitle || '',
+            quizDescription: chapter.quizDescription || '',
+            completed: chapter.completed || false,
+          };
+
+          if (chapter.id) {
+            await tx.chapter.update({
+              where: { id: parseInt(chapter.id) },
+              data: {
+                ...chapterData,
+                uploadedFiles: {
+                  deleteMany: {},
+                  create: chapter.uploadedFiles
+                    ? chapter.uploadedFiles.map((file) => ({
+                      name: file.name || '',
+                      size: file.size || '',
+                      type: file.type || '',
+                      uniqueName: file.uniqueName || '',
+                      url: file.url || '',
+                      date: file.date || '',
+                      title: file.title || '',
+                      description: file.description || '',
+                      duration: file.duration || null,
+                      fileId: file.fileId || null,
+                    }))
+                    : [],
+                },
+                questions: {
+                  deleteMany: {},
+                  create: chapter.questions
+                    ? chapter.questions.map((question) => ({
+                      question: question.question || '',
+                      options: question.options || [],
+                      answer: question.answer !== undefined ? parseInt(question.answer) : 0,
+                    }))
+                    : [],
+                },
+              },
+            });
+          } else {
+            await tx.chapter.create({
+              data: {
+                courseId: parseInt(courseId),
+                ...chapterData,
+                uploadedFiles: chapter.uploadedFiles
+                  ? {
+                    create: chapter.uploadedFiles.map((file) => ({
+                      name: file.name || '',
+                      size: file.size || '',
+                      type: file.type || '',
+                      uniqueName: file.uniqueName || '',
+                      url: file.url || '',
+                      date: file.date || '',
+                      title: file.title || '',
+                      description: file.description || '',
+                      duration: file.duration || null,
+                      fileId: file.fileId || null,
+                    })),
+                  }
+                  : undefined,
+                questions: chapter.questions
+                  ? {
+                    create: chapter.questions.map((question) => ({
+                      question: question.question || '',
+                      options: question.options || [],
+                      answer: question.answer !== undefined ? parseInt(question.answer) : 0,
+                    })),
+                  }
+                  : undefined,
+              },
+            });
+          }
+        }
+      });
+    }
+
+    await prisma.course.update({
+      where: { id: parseInt(courseId) },
+      data: updates,
+    });
+
+    res.json('Course has been successfully updated');
+  } catch (error) {
+    console.error('Update course error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 };
 
 export const deleteCourse = async (req, res) => {
   const { courseId } = req.params;
 
-  const course = await Course.findById(courseId).exec();
-  if (!course) return res.status(400).json({ message: "Course not found" });
+  try {
+    // First verify the course exists
+    const course = await prisma.course.findUnique({
+      where: { id: parseInt(courseId) },
+    });
 
-  await course.deleteOne();
-  res.json(`Course successfully deleted`);
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    await prisma.$transaction(async (tx) => {
+
+      await tx.question.deleteMany({
+        where: {
+          chapter: {
+            courseId: parseInt(courseId)
+          }
+        }
+      });
+
+      await tx.uploadedFile.deleteMany({
+        where: {
+          chapter: {
+            courseId: parseInt(courseId)
+          }
+        }
+      });
+
+      await tx.chapter.deleteMany({
+        where: { courseId: parseInt(courseId) }
+      });
+
+      await tx.course.delete({
+        where: { id: parseInt(courseId) }
+      });
+    });
+
+    return res.status(200).json({ message: 'Course successfully deleted' });
+  } catch (error) {
+    console.error('Delete course error:', error);
+    return res.status(500).json({
+      message: 'Failed to delete course',
+    });
+  }
 };

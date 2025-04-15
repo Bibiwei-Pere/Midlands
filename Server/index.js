@@ -9,7 +9,7 @@ import cookieParser from "cookie-parser";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 import connectDB from "./config/dbConn.js";
-import mongoose from "mongoose";
+//import mongoose from "mongoose";
 import rootRoutes from "./routes/root.js";
 import auth from "./routes/auth.js";
 import video from "./routes/video.js";
@@ -29,13 +29,14 @@ import review from "./routes/review.js";
 import payout from "./routes/payout.js";
 import certificate from "./routes/certificate.js";
 import { cron } from "./controllers/cron.js";
+import { connectPrismaDB } from "./config/prismaDbConn.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3500;
-connectDB();
+// connectDB();
 
 app.use(logger);
 app.use(express.json({ limit: "500mb" })); // or an appropriate size
@@ -71,12 +72,20 @@ app.all("*", (req, res) => {
 });
 app.use(errorHandler);
 
-mongoose.connection.once("open", () => {
-  console.log("Connected to MongoDB");
-  app.listen(PORT, () => console.log(`Server is running on ${PORT}`));
-});
+// mongoose.connection.once("open", () => {
+//   console.log("Connected to MongoDB");
+// });
 
-mongoose.connection.on("error", (err) => {
-  console.log(err);
-  logEvents(`${err.no}: ${err.code}\t${err.syscall}\t${err.hostname}`, "mongoErrLog.log");
+// mongoose.connection.on("error", (err) => {
+//   console.log(err);
+//   logEvents(`${err.no}: ${err.code}\t${err.syscall}\t${err.hostname}`, "mongoErrLog.log");
+// });
+connectPrismaDB().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Server is running on ${PORT}`);
+    logEvents(`Server started on port ${PORT}`, "appLog.log"); // Use your custom logger
+  });
+}).catch((error) => {
+  console.error('Failed to start server due to DB connection error:', error);
+  logEvents(`DB Connection Error: ${error.message}`, "appErrLog.log");
 });

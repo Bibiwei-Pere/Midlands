@@ -1,44 +1,69 @@
-import User from "../models/User.js";
-import Video from "../models/Video.js";
+import { PrismaClient } from '@prisma/client';
+const prisma = new PrismaClient();
 
 export const getAllVideos = async (req, res) => {
-  // Find videos and sort them by 'createdAt' in descending order
-  const cousre = await Video.find().sort({ createdAt: -1 }).lean(); // Assuming 'createdAt' is the date field
-  if (!cousre?.length) {
-    return res.status(400).json({ message: "No cousre found" });
+  try {
+    // Find videos with user information included
+    const videos = await prisma.video.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true
+          }
+        }
+      }
+    });
+
+    if (!videos?.length) {
+      return res.status(400).json({ message: "No videos found" });
+    }
+
+    // Format the response to match the original structure
+    const videosWithUser = videos.map(video => ({
+      ...video,
+      userId: video.user.id
+    }));
+
+    res.json(videosWithUser);
+  } catch (error) {
+    console.error("Error fetching videos:", error);
+    return res.status(500).json({ message: "Server error" });
   }
-
-  // Add username to each video before sending the response
-  const cousreWithUser = await Promise.all(
-    cousre.map(async (video) => {
-      const user = await User.findById(video.user).lean().exec();
-      return { ...video, username: user.username };
-    })
-  );
-
-  res.json(cousreWithUser);
 };
 
 export const getVideoById = async (req, res) => {
   const { videoId } = req.params;
-  const video = await Video.findById(videoId).lean();
-  if (!video) return res.status(400).json({ message: "No video found" });
-  res.json(video);
+
+  try {
+    const video = await prisma.video.findUnique({
+      where: { id: parseInt(videoId) }
+    });
+
+    if (!video) return res.status(400).json({ message: "No video found" });
+    res.json(video);
+  } catch (error) {
+    console.error("Error fetching video:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
 };
 
 export const getVideoByCategory = async (req, res) => {
   const { name } = req.params;
 
   try {
-    const videos = await Video.find({ category: name }).lean();
-    if (!videos || videos.length === 0)
-      return res
-        .status(404)
-        .json({ message: "No videos found for this category" });
+    const videos = await prisma.video.findMany({
+      where: { category: name }
+    });
+
+    if (!videos || videos.length === 0) {
+      return res.status(404).json({ message: "No videos found for this category" });
+    }
 
     res.json(videos);
   } catch (error) {
-    console.error("Error fetching videos:", error);
+    console.error("Error fetching videos by category:", error);
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -55,7 +80,6 @@ export const createVideo = async (req, res) => {
     isPublic,
   } = req.body;
 
-  console.log("file", req.body);
   if (!category)
     return res.status(400).json({ message: "Category field is required" });
   if (!title)
@@ -63,38 +87,41 @@ export const createVideo = async (req, res) => {
   if (!description)
     return res.status(400).json({ message: "Description field is required" });
   if (!videoUrl)
-    return res.status(400).json({ message: "Price field is required" });
+    return res.status(400).json({ message: "Video URL field is required" });
 
-  const user = await User.findById(userId).exec();
-  if (!user) return res.status(400).json({ message: "User not found" });
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(userId) }
+    });
 
-  let rate;
-  if (!rating) rate = 5;
-  else rate = parseInt(rating);
+    if (!user) return res.status(400).json({ message: "User not found" });
 
-  const video = await Video.create({
-    user: userId,
-    category,
-    title,
-    description,
-    duration,
-    videoUrl,
-    views: 50,
-    rating,
-    isPublic,
-  });
+    const rate = rating ? parseInt(rating) : 5;
 
-  if (video) {
-    await video.save();
+    const video = await prisma.video.create({
+      data: {
+        userId: parseInt(userId),
+        category,
+        title,
+        description,
+        duration,
+        videoUrl,
+        views: 50,
+        rating: rate,
+        isPublic,
+      }
+    });
 
     return res.status(200).json({ message: "New video created successfully" });
-  } else {
+  } catch (error) {
+    console.error("Error creating video:", error);
     return res.status(400).json({ message: "Invalid video data received" });
   }
 };
 
 export const updateVideo = async (req, res) => {
   const {
+    videoId,
     userId,
     category,
     title,
@@ -111,36 +138,61 @@ export const updateVideo = async (req, res) => {
   if (!userId)
     return res.status(400).json({ message: "User field is required" });
 
-  const video = await Video.findById(videoId).exec();
-  if (!video) return res.status(400).json({ message: "Video not found!" });
+  try {
+    const video = await prisma.video.findUnique({
+      where: { id: parseInt(videoId) }
+    });
 
-  if (category) video.category = category;
-  if (title) video.title = title;
-  if (description) video.description = description;
-  if (videoUrl) video.videoUrl = videoUrl;
-  if (description) video.description = description;
-  if (views) video.views = views;
-  if (duration) video.duration = duration;
-  if (rating) video.rating = rating;
-  if (isPublic) video.isPublic = isPublic;
-  const updatedVideo = await video.save();
+    if (!video) return res.status(400).json({ message: "Video not found!" });
 
-  res.json(`'${updatedVideo.title}' has been successfully updated`);
+    const updatedVideo = await prisma.video.update({
+      where: { id: parseInt(videoId) },
+      data: {
+        category: category || video.category,
+        title: title || video.title,
+        description: description || video.description,
+        videoUrl: videoUrl || video.videoUrl,
+        views: views || video.views,
+        duration: duration || video.duration,
+        rating: rating || video.rating,
+        isPublic: isPublic !== undefined ? isPublic : video.isPublic,
+      }
+    });
+
+    res.json(`'${updatedVideo.title}' has been successfully updated`);
+  } catch (error) {
+    console.error("Error updating video:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
 };
 
 export const deleteVideo = async (req, res) => {
-  const { videorId } = req.body;
+  const { videoId } = req.body;
 
-  if (!videorId) {
-    const result = await Video.deleteMany({});
+  try {
+    if (!videoId) {
+      const result = await prisma.video.deleteMany({});
 
-    if (result.deletedCount > 0) res.json(`All videos deleted`);
-    else res.status(400).json({ message: "No videos found to delete" });
-  } else {
-    const video = await Video.findById(id).exec();
-    if (!video) return res.status(400).json({ message: "Video not found" });
+      if (result.count > 0) {
+        res.json(`All videos deleted`);
+      } else {
+        res.status(400).json({ message: "No videos found to delete" });
+      }
+    } else {
+      const video = await prisma.video.findUnique({
+        where: { id: parseInt(videoId) }
+      });
 
-    await video.deleteOne();
-    res.json(`Video successfully deleted`);
+      if (!video) return res.status(400).json({ message: "Video not found" });
+
+      await prisma.video.delete({
+        where: { id: parseInt(videoId) }
+      });
+
+      res.json(`Video successfully deleted`);
+    }
+  } catch (error) {
+    console.error("Error deleting video:", error);
+    return res.status(500).json({ message: "Server error" });
   }
 };

@@ -1,0 +1,19 @@
+
+model Signal {
+  id        Int      @id @default(autoincrement())
+  userId    Int?     @map("user")
+  user      User?    @relation(fields: [userId], references: [id])
+  price     String
+  stopLoss  String   @map("stop_loss")
+  currency  String
+  orderType String   @default("BUY") @map("order_type")
+  profit1   String?  @map("profit_1")
+  profit2   String?  @map("profit_2")
+  profit3   String?  @map("profit_3")
+  info      String?
+  duration  String?
+  isRead    Boolean  @default(false) @map("is_read")
+  isDraft   String?  @map("is_draft")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+}

@@ -1,0 +1,12 @@
+model Review {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user")
+  user        User     @relation(fields: [userId], references: [id])
+  courseId    Int   @map("course_id")
+  course      Course   @relation(fields: [courseId], references: [id])
+  instructorId Int  @map("instructor_id")
+  response    String
+  star        Int
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+}
